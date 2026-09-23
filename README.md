@@ -10,7 +10,7 @@ This repository holds the code and the documentation. It does not hold Eden's ru
 
 ## Status
 
-The code in this repository is the current version, which I call Eden 1 (Ollama, ChromaDB, Kuzu). I am rebuilding it as Eden 2, on llama.cpp and a single SQLite memory. So far that work has produced measurements, design decisions and a migration of the memory to SQLite. There is no Eden 2 runtime code in this repository yet.
+The code in this repository is the current version, which I call Eden 1 (Ollama, ChromaDB, Kuzu). I am rebuilding it as Eden 2, on llama.cpp and a single SQLite memory. So far that work has produced measurements, design decisions, a migration of the memory to SQLite and a memory exam that chose the model and the memory setup. There is no Eden 2 runtime code in this repository yet.
 
 The reasons, the numbers and what is still open are in [`docs/EDEN2.md`](docs/EDEN2.md). In short:
 
@@ -22,7 +22,7 @@ The reasons, the numbers and what is still open are in [`docs/EDEN2.md`](docs/ED
 | Consolidation | periodic rule-based job | a "sleep" step that extracts facts together with their source |
 | Voice | Fish-Speech 1.5 | Qwen3-TTS 1.7B, with faster-whisper for listening |
 
-The rebuild has 8 steps: 1 measurements (done) · 2 migration to SQLite (done) · 3 memory exam (in progress) · 4 new core · 5 search as a tool, with checked citations · 6 sleep, and a view of what Eden knows about the user · 7 voice, UI, access · 8 proactive messages and pruning.
+The rebuild has 8 steps: 1 measurements (done) · 2 migration to SQLite (done) · 3 memory exam (done) · 4 new core · 5 search as a tool, with checked citations · 6 sleep, and a view of what Eden knows about the user · 7 voice, UI, access · 8 proactive messages and pruning.
 
 ## What is in here (Eden 1)
 

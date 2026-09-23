@@ -1,6 +1,6 @@
 # Eden 2: decisions and measurements
 
-Status as of 23 September 2026. This document is in English; the other technical docs are in Italian.
+Status as of 24 September 2026. This document is in English; the other technical docs are in Italian.
 
 Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers what was said to it and does not make things up. The first measurements showed that a very long context is not enough for that on its own, and that the memory needs literal storage, search and dated facts. Everything below was measured on one machine, with one user's real history, so read the numbers as indications and not as benchmarks.
 
@@ -10,7 +10,7 @@ Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers 
 |---|---|---|
 | 1 | Measurements: speed, memory recall, search, voice | done |
 | 2 | Migrate everything Eden has lived into one SQLite file | done |
-| 3 | Memory exam: about 80 questions taken from the real history, answers checked against the source messages. It decides the model and the memory setup | in progress |
+| 3 | Memory exam: 83 questions taken from the real history, answers checked against the source messages. It decided the model and the memory setup (see below) | done |
 | 4 | New core: prompt, loop, tools | not started |
 | 5 | Search as a tool the model calls, with citations that are checked | not started |
 | 6 | Sleep: facts with their source, open threads; a view of what Eden knows about the user | not started |
@@ -49,7 +49,7 @@ Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers 
 | Long history + search results at the end of the message | 9/9 (3–4 s) | 7/9 |
 | Long history + reasoning on | 9/9 (4–21 s) | not run |
 
-- The sample is small: a difference of 1–2 points is noise. The choice of the model is left to the memory exam (step 3).
+- The sample is small: a difference of 1–2 points is noise. The model was chosen with the memory exam (step 3, below).
 - The community variant mixes English into 8 of 49 answers; the official build into 0 of 27.
 - With a prompt that offered the way out "if it is not there, say it is not there", the community variant fell to 3/9: it used the way out instead of searching.
 
@@ -86,6 +86,28 @@ Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers 
 ### Cache saved to disk
 
 Not usable yet. With hybrid models, saving the slot cache loses the restore points ([llama.cpp issue 25913](https://github.com/ggml-org/llama.cpp/issues/25913); a fix is in [PR 26004](https://github.com/ggml-org/llama.cpp/pull/26004), open at the time of writing). To try again when it is merged.
+
+## Memory exam (step 3)
+
+83 questions taken from the real conversation history, written the way the user would ask them: facts, dates, lists, corrections, questions about things that were never said, and one rule (a topic the user asked not to bring up). Every expected answer carries the literal quote of the source message and is checked against the database. Answers are graded by keywords, with no model call, and the answers to the "never said" questions and to the rule were re-read by hand. The questions are personal and are not published.
+
+Two builds of Qwen3.8-27B (the community variant and the official one), each with the long history alone (139K tokens), the search alone (12 exchanges) and both together (search results at the end of the message, so the cached history stays valid). Correct answers out of 83, one run per setup:
+
+| Setup | Community variant | Official |
+|---|---|---|
+| Long history only | 61 | 61 |
+| Search only | 65–67 | 67 |
+| Long history + search | 73–75 | 74 |
+| Long history + search + reasoning | 78 | 78 |
+
+- The older part of the history (23 questions whose evidence is before the long window) is where the history alone fails (7 correct) and the search fixes it (19–21).
+- Median time per answer: 1.3–1.6 s with the history alone, 1.7–2.0 s with the search alone, 3.3–3.6 s with both, about 10 s with reasoning (25–26 s in the slowest 10%). The first read of the history takes about 170 s.
+- The two builds are equal on correctness. The community variant mixes English into up to 28 of the 83 answers (8 when the search is used, 3 with an explicit "answer only in Italian" instruction, none with reasoning on); the official build never does. For a voice that reads the answers aloud this is a defect, so the official build is the choice.
+- Questions about things that were never said: 13–14 of 14 passed in most setups. The exception is a false premise taken from an old question of the user: when the search results are shown without their surroundings, the model adopts it.
+- What still fails in every setup: "first / last time" dates, agreeing with a false statement ("I am 33, right?" when the birth date says 32), lists spread over several dates, questions worded very differently from the source, and keeping a reserved topic out of the answer (a sentence in the prompt is not enough).
+- Limits: one run per setup (differences of 1–2 questions are noise), one user, keyword grading plus a hand review, and the search uses the question as it is, the worst case for search.
+
+What this means for the next steps: a calendar tool and computed facts (such as the age) always in the prompt, a rule to correct false premises, a search the model rewrites and repeats, results shown with their surroundings, and reserved facts kept out of the context.
 
 ## Decisions
 
@@ -136,6 +158,7 @@ The database is not published. The tables:
 
 ## Open questions
 
-- Which build of the model to use: the choice is left to the memory exam.
+- Which build of the model to use: decided by the memory exam, the official Qwen3.8-27B.
+- How to close the error classes the exam left open (calendar tool, computed facts, corrections of false premises, rewritten searches): steps 4 to 6.
 - Whether one model server can serve Eden and another tool at the same time without losing the cache.
 - How the search tool will behave when the model rewrites the query badly: this belongs to step 5.
