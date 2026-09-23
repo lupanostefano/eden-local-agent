@@ -24,38 +24,20 @@ This repository holds the code and the documentation. It does not hold Eden's ru
 ## Architecture
 
 ```mermaid
-flowchart LR
-    UI["Web UI<br/>chat · voice · avatar"] --> AG["Flask · core/agent.py"]
-
-    subgraph IN["1 · Before answering"]
-        IR["Intent router<br/>rules + phi3:mini"] --> RE["Pre-answer<br/>reflection"]
-        RE --> SP["System prompt<br/>identity · traits · internal state · memories"]
-    end
-
-    subgraph MEM["Memory"]
-        WM["Working memory"]
-        EP["Episodic"]
-        SE["Semantic<br/>facts about the user"]
-        VE["ChromaDB<br/>similarity"]
-        GR["Kuzu<br/>verified facts"]
-    end
-
-    subgraph ST["Internal state"]
-        HO["Homeostasis"]
-        SO["Somatic<br/>GPU telemetry"]
-    end
-
-    AG --> IR
-    MEM --> SP
-    ST --> SP
-    HO -->|"temperature · length"| LLM
+flowchart TB
+    UI["Web UI<br/>chat · voice · avatar"] --> AG["Flask server<br/>core/agent.py"]
+    AG --> IR["Intent router<br/>rules + phi3:mini"]
+    IR --> RE["Pre-answer reflection"]
+    RE --> SP["System prompt<br/>identity · traits · state · memories"]
+    MEM["Memory<br/>working · episodic · semantic<br/>ChromaDB · Kuzu graph"] --> SP
+    ST["Internal state<br/>homeostasis · GPU telemetry"] --> SP
     SP --> LLM["Local LLM<br/>Ollama · qwen3.8:27b"]
-    LLM --> DE["2 · Answer check<br/>drift · grounding · rewrite"]
-    GR -->|"verified facts"| DE
+    ST -->|"temperature · length"| LLM
+    LLM --> DE["Answer check<br/>drift · grounding · rewrite"]
+    MEM -->|"verified facts"| DE
     DE -->|"validated answer"| AG
-    DE --> EN["3 · Write to memory"]
+    DE --> EN["Write to memory"]
     EN --> MEM
-    AG --> UI
 ```
 
 For each message: the intent is classified, the context is prepared, the model generates, `core/decision.py` checks the answer (and rewrites it if needed), and the exchange is stored in memory. In the background there are the consolidation job, the internal thoughts, the proactive messages, the autonomy module and the subsystem health checks.
