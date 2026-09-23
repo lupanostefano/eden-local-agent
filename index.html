@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>EDEN</title>
+
+  <!-- Mode early-boot: evita FOUC applicando la classe prima del CSS -->
+  <script>
+    (function(){
+      try {
+        var m = localStorage.getItem('eden_mode');
+        document.documentElement.classList.add(
+          (m === 'lab' || m === 'presence') ? 'mode-' + m : 'mode-presence'
+        );
+      } catch(e) {
+        document.documentElement.classList.add('mode-presence');
+      }
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <!-- Three.js via CDN — ES module import map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.169.0"
+    }
+  }
+  </script>
+
+  <!-- Avatar: sistema sinaptico 3D (synapse.js) — auto-inizializza dopo il DOM -->
+  <script type="module">
+    import { initAvatar } from '/static/avatar/synapse.js';
+    document.addEventListener('DOMContentLoaded', initAvatar);
+  </script>
+
+  <!-- User presence: MediaPipe FaceLandmarker per emozioni utente real-time (Phase 3+) -->
+  <script type="module" src="/static/avatar/user_presence.js"></script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header command-center ──────────────────────────────────────── -->
+    <header>
+      <!-- Hamburger menu (mobile only via CSS) -->
+      <button id="btn-mobile-menu" type="button"
+              aria-label="Apri menu" aria-expanded="false"
+              aria-controls="header-nav">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+          <path d="M3 6h14M3 10h14M3 14h14" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <!-- User chip (left zone) -->
+      <div id="h-user" class="h-user" title="Stefano">
+        <div id="h-user-avatar" class="h-user-avatar"></div>
+        <span id="h-user-name" class="h-user-name">stefano</span>
+        <span class="h-user-chev">&#9662;</span>
+      </div>
+
+      <div id="agent-title">EDEN</div>
+      <div id="header-sep"></div>
+      <div id="relationship-badge" class="stranger">sconosciuto</div>
+
+      <nav id="header-nav">
+        <a href="#" class="header-nav-link active" data-section="dashboard">DASHBOARD</a>
+        <a href="#" class="header-nav-link" data-section="chat">CHAT</a>
+        <a href="#" class="header-nav-link" data-section="logs">LOGS</a>
+        <a href="#" class="header-nav-link" data-section="debug">DEBUG</a>
+      </nav>
+
+      <div id="header-sep-right"></div>
+
+      <!-- Datetime live (right zone) -->
+      <div id="h-datetime" class="h-datetime" aria-hidden="true">
+        <div class="h-dt-date" id="h-dt-date">—</div>
+        <div class="h-dt-time" id="h-dt-time">--:--:--</div>
+      </div>
+
+      <div id="status-dot"></div>
+
+      <!-- Toggle modalita Presenza <-> Laboratorio -->
+      <button id="btn-mode-toggle" type="button"
+              aria-label="Mostra/nascondi pannelli di controllo"
+              title="Laboratorio (Esc per uscire)">
+        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+          <rect x="2.5" y="3.5" width="15" height="13" rx="1"
+                fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <line x1="8" y1="3.5" x2="8" y2="16.5"
+                stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+        <span class="mode-toggle-label">LAB</span>
+      </button>
+    </header>
+
+    <!-- Backdrop drawer mobile (separato da #lab-backdrop) -->
+    <div id="mobile-drawer-backdrop" aria-hidden="true"></div>
+
+    <!-- Backdrop drawer chat-focused (step 5/8) — copre quando sidebar/context aperti -->
+    <div id="chat-drawer-backdrop" aria-hidden="true"></div>
+
+    <!-- ── Context drawer destro (placeholder per step 6) ─────────────── -->
+    <aside id="chat-context-drawer" aria-label="Contesto richiamato" aria-hidden="true">
+      <div class="ctx-header">
+        <span class="ctx-title">CONTEXT &middot; LIVE</span>
+        <button id="btn-close-context" type="button" aria-label="Chiudi context">&times;</button>
+      </div>
+      <div class="ctx-body" id="ctx-body">
+
+        <div class="ctx-section">
+          <div class="ctx-section-label">richiamo attivo</div>
+          <div class="ctx-empty" id="ctx-empty">in attesa di un messaggio &mdash; il contesto richiamato apparir&agrave; qui</div>
+          <div class="ctx-list" id="ctx-recall-list"></div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="ctx-section-label">pensieri SIC recenti</div>
+          <div class="ctx-list" id="ctx-sic-list">
+            <span class="ctx-empty">nessun pensiero recente</span>
+          </div>
+        </div>
+
+        <div class="ctx-section">
+          <div class="ctx-section-label">vitals</div>
+          <div class="ctx-vitals">
+            <div class="ctx-vital"><span class="lbl">battito</span><span class="val"><span class="pulse-dot"></span><span id="ctx-vital-bpm">--</span></span></div>
+            <div class="ctx-vital"><span class="lbl">VRAM</span><span class="val" id="ctx-vital-vram">--</span></div>
+            <div class="ctx-vital"><span class="lbl">somatic</span><span class="val" id="ctx-vital-som">--</span></div>
+            <div class="ctx-vital"><span class="lbl">sleep</span><span class="val" id="ctx-vital-sleep">--</span></div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Backdrop per drawer mobile (solo mode-lab su schermi stretti) -->
+    <div id="lab-backdrop" aria-hidden="true"></div>
+
+    <!-- ── Contenuto principale ───────────────────────────────────────── -->
+    <main id="main-chat">
+
+      <!-- ── Sidebar sinistra: avatar + tratti + azioni ──────────────── -->
+      <aside id="sidebar">
+
+        <!-- Avatar Three.js (Phase 1.6 Strato 1) -->
+        <div id="avatar-container">
+          <!-- LivePortrait MJPEG stream (Strato 2 — mostrato quando disponibile) -->
+          <img id="face-stream" alt="" aria-hidden="true" />
+          <!-- Avatar emozionale dinamico (idle_loop_dynamic.py porta 5002) -->
+          <!-- ID diverso da face-stream → synapse.js MutationObserver non lo tocca -->
+          <img id="face-dynamic" alt="" aria-hidden="true" />
+          <!-- Bottone switch manuale sinapsi ↔ avatar emozionale -->
+          <button id="btn-dynamic-toggle" class="hidden" type="button"
+                  aria-label="Alterna tra sinapsi e avatar emozionale"
+                  title="Alterna sinapsi / avatar emozionale">AVATAR</button>
+          <!-- Il canvas Three.js viene iniettato da synapse.js (sistema sinaptico 3D) -->
+          <div id="avatar-crt"></div><!-- overlay CRT scanlines -->
+        </div>
+
+        <!-- Indicatore stato LivePortrait + toggle -->
+        <div id="face-status-bar">
+          <span id="face-status-dot"></span>
+          <span id="face-status-text">THREE.JS</span>
+          <button id="btn-lp-toggle" class="hidden" type="button"
+                  aria-label="Attiva o disattiva LivePortrait"
+                  title="Attiva / disattiva LivePortrait">
+            <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true" class="lp-icon-on">
+              <path d="M1.5 10C3 6.5 6.2 4.5 10 4.5s7 2 8.5 5.5c-1.5 3.5-4.7 5.5-8.5 5.5S3 13.5 1.5 10z"
+                    fill="none" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true" class="lp-icon-off">
+              <path d="M1.5 10C3 6.5 6.2 4.5 10 4.5c1.5 0 2.9.3 4.1.9M18.5 10c-.9 2.2-2.6 3.8-4.7 4.8M7 7l8 8M2 2l16 16"
+                    fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Webcam (Phase 3) -->
+        <div id="webcam-container">
+          <video id="webcam-video" autoplay muted playsinline></video>
+          <canvas id="webcam-canvas"></canvas>
+          <div id="webcam-overlay">
+            <span id="webcam-dot"></span>
+            <span id="webcam-label">CAM</span>
+          </div>
+          <button id="webcam-btn" type="button"
+                  aria-label="Attiva o disattiva webcam"
+                  title="Attiva / disattiva webcam">
+            <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+              <rect x="2" y="5" width="16" height="11" rx="1.5"
+                    fill="none" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="10" cy="10.5" r="2.8"
+                      fill="none" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M7 5l1.3-1.5h3.4L13 5"
+                    fill="none" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Tratti psicologici -->
+        <div class="sidebar-block">
+          <div class="sidebar-title">Stato psicologico</div>
+
+          <div class="trait" id="trait-curiosity">
+            <div class="trait-header">
+              <span class="trait-name">CURIOSITÀ</span>
+              <span class="trait-value">5.0</span>
+            </div>
+            <div class="trait-track">
+              <div class="trait-fill" style="width:50%"></div>
+            </div>
+          </div>
+
+          <div class="trait" id="trait-trust">
+            <div class="trait-header">
+              <span class="trait-name">FIDUCIA</span>
+              <span class="trait-value">5.0</span>
+            </div>
+            <div class="trait-track">
+              <div class="trait-fill" style="width:50%"></div>
+            </div>
+          </div>
+
+          <div class="trait" id="trait-cynicism">
+            <div class="trait-header">
+              <span class="trait-name">CINISMO</span>
+              <span class="trait-value">5.0</span>
+            </div>
+            <div class="trait-track">
+              <div class="trait-fill" style="width:50%"></div>
+            </div>
+          </div>
+
+          <div class="trait" id="trait-warmth">
+            <div class="trait-header">
+              <span class="trait-name">CALORE</span>
+              <span class="trait-value">5.0</span>
+            </div>
+            <div class="trait-track">
+              <div class="trait-fill" style="width:50%"></div>
+            </div>
+          </div>
+
+          <div class="trait" id="trait-fear">
+            <div class="trait-header">
+              <span class="trait-name">PAURA</span>
+              <span class="trait-value">5.0</span>
+            </div>
+            <div class="trait-track">
+              <div class="trait-fill" style="width:50%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contatori sessione -->
+        <div class="sidebar-block">
+          <div class="sidebar-title">Sessione</div>
+
+          <div class="stat-row">
+            <span class="stat-label">SCAMBI</span>
+            <span class="stat-value" id="stat-exchange">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">SESSIONI</span>
+            <span class="stat-value" id="stat-sessions">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">STORIA</span>
+            <span class="stat-value" id="stat-history">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">RICORDI</span>
+            <span class="stat-value" id="stat-memories">0</span>
+          </div>
+        </div>
+
+        <!-- Stato Affettivo -->
+        <div class="sidebar-block" id="affective-block">
+          <div class="sidebar-title">Stato Affettivo</div>
+          <div class="stat-row">
+            <span class="stat-label">VALENZA</span>
+            <span class="stat-value" id="af-valence">--</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">AROUSAL</span>
+            <span class="stat-value" id="af-arousal">--</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">CERTEZZA</span>
+            <span class="stat-value" id="af-certainty">--</span>
+          </div>
+        </div>
+
+        <!-- Autonomia -->
+        <div class="sidebar-block">
+          <div class="sidebar-title">Autonomia</div>
+
+          <div class="stat-row">
+            <span class="stat-label">STATO</span>
+            <span class="stat-value" id="auto-running">OFF</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">MODALITÀ</span>
+            <span class="stat-value" id="auto-mode">SHADOW</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">INTERVALLO</span>
+            <span class="stat-value" id="auto-interval">--</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">DECISIONI</span>
+            <span class="stat-value" id="auto-decisions">0</span>
+          </div>
+
+          <div class="autonomy-actions">
+            <button id="btn-auto-refresh" class="action-btn small-btn">AGGIORNA</button>
+            <button id="btn-auto-tick" class="action-btn small-btn">FORZA TICK</button>
+          </div>
+        </div>
+
+        <!-- Pioneer Features -->
+        <div class="sidebar-block" id="pioneer-block">
+          <div class="sidebar-title">Pioneer</div>
+
+          <div class="stat-row">
+            <span class="stat-label">DIALOGO INT.</span>
+            <button id="pioneer-btn-dialogo_interno" class="pioneer-btn" data-feature="dialogo_interno">OFF</button>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">THEORY MIND</span>
+            <button id="pioneer-btn-user_model" class="pioneer-btn" data-feature="user_model">OFF</button>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">CONSOLID.</span>
+            <button id="pioneer-btn-consolidamento" class="pioneer-btn" data-feature="consolidamento">OFF</button>
+          </div>
+        </div>
+
+        <!-- SIC — Pensieri recenti -->
+        <div class="sidebar-block" id="sic-block">
+          <div class="sidebar-title">Pensieri
+            <button id="btn-sic-refresh" class="sic-refresh-btn" title="Aggiorna">↺</button>
+          </div>
+          <div id="sic-thoughts"><span class="sic-empty">nessun pensiero recente</span></div>
+        </div>
+
+        <!-- Azioni -->
+        <div id="sidebar-actions">
+          <button id="btn-new-session" class="action-btn">
+            NUOVA SESSIONE
+          </button>
+          <button id="btn-archive" class="action-btn">
+            ARCHIVIO
+          </button>
+        </div>
+
+      </aside>
+
+      <!-- ── Pannello archivio sessioni (si sostituisce alla chat) ───── -->
+      <section id="archive-panel" class="hidden">
+
+        <!-- Vista lista sessioni -->
+        <div id="archive-list-view">
+          <div id="archive-header">
+            <button id="btn-archive-close" class="archive-nav-btn">← TORNA</button>
+            <span id="archive-title">ARCHIVIO SESSIONI</span>
+          </div>
+          <div id="archive-list">
+            <!-- Popolato da JS -->
+          </div>
+        </div>
+
+        <!-- Vista dettaglio sessione -->
+        <div id="archive-detail-view" class="hidden">
+          <div id="archive-detail-header">
+            <button id="btn-archive-back" class="archive-nav-btn">← ARCHIVIO</button>
+            <span id="archive-detail-title"></span>
+            <button id="btn-session-resume" class="archive-resume-btn">RIPRENDI</button>
+          </div>
+          <div id="archive-detail-messages">
+            <!-- Messaggi sessione — popolato da JS -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── Sezione chat destra ─────────────────────────────────────── -->
+      <section id="chat-section">
+
+        <!-- Edge-tabs per aprire drawers chat-focused (step 5/8) -->
+        <button id="btn-open-avatar" class="chat-edge-tab edge-left" type="button"
+                aria-label="Mostra avatar e stato di Eden"
+                title="Avatar + tratti">
+          <span class="edge-pip"></span>
+          <span class="edge-glyph">&#9711;</span>
+          <span class="edge-label">EDEN</span>
+        </button>
+        <button id="btn-open-context" class="chat-edge-tab edge-right" type="button"
+                aria-label="Mostra contesto richiamato"
+                title="Contesto + memoria + SIC">
+          <span class="edge-label">CONTEXT</span>
+          <span class="edge-glyph">&#11206;</span>
+          <span class="edge-pip"></span>
+        </button>
+
+        <div id="messages"></div>
+
+        <!-- Typing indicator -->
+        <div id="typing-wrapper">
+          <div id="typing-indicator" role="status" aria-label="Eden sta scrivendo">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Input -->
+        <div id="input-area">
+          <!-- Anteprima file allegato -->
+          <div id="file-preview" class="hidden">
+            <span id="file-preview-name"></span>
+            <button id="file-remove" type="button" aria-label="Rimuovi allegato">✕</button>
+          </div>
+          <form id="input-form" autocomplete="off">
+            <textarea
+              id="input"
+              placeholder="Dimmi qualcosa…"
+              aria-label="Messaggio per Eden"
+              rows="1"
+            ></textarea>
+            <!-- Input file nascosto -->
+            <input
+              id="file-input"
+              type="file"
+              accept=".txt,.md,.py,.js,.ts,.json,.csv,.yaml,.yml,.html,.css,.xml,.pdf,.docx,.doc,.log,.sh,.bat,.ini,.toml,.rs,.go,.java,.c,.cpp,.h"
+              aria-label="Allega documento"
+              class="hidden"
+            />
+            <button id="btn-attach" type="button" aria-label="Allega file" title="Allega file">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                <path d="M14.5 8.5l-5.7 5.7a3 3 0 1 1-4.2-4.2l6.4-6.4a2 2 0 0 1 2.8 2.8l-6.4 6.4a1 1 0 0 1-1.4-1.4l5.7-5.7"
+                      fill="none" stroke="currentColor" stroke-width="1.3"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="btn-mic" type="button" aria-label="Registra messaggio vocale" title="Microfono">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                <rect x="7.5" y="2.5" width="5" height="9" rx="2.5"
+                      fill="none" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5M7 17.5h6"
+                      fill="none" stroke="currentColor" stroke-width="1.3"
+                      stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="btn-tts" type="button" aria-label="Attiva/disattiva voce Eden" title="Voce Eden" style="display:none">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                <path d="M3 8v4h3l4 3.5v-15L6 4H3z"
+                      fill="none" stroke="currentColor" stroke-width="1.3"
+                      stroke-linejoin="round"/>
+                <path d="M13.5 6.5a5 5 0 0 1 0 7M11.5 8.5a2.5 2.5 0 0 1 0 3"
+                      fill="none" stroke="currentColor" stroke-width="1.3"
+                      stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="btn-send" type="submit" aria-label="Invia messaggio" title="Invia">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+                <path d="M2.5 10 17.5 3 13 17.5l-3-6.5-7.5-1z"
+                      fill="none" stroke="currentColor" stroke-width="1.3"
+                      stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ── Sezione Dashboard (home command-center) ───────────────────── -->
+    <section id="section-dashboard" class="page-section hidden">
+      <div id="dashboard-root" class="dash-root">
+
+        <!-- ╔════ HERO CENTRALE + 6 CARDS GRID ════╗ -->
+        <div class="dash-grid">
+
+          <!-- ── COL SX ── -->
+
+          <!-- Card 1: TRATTI radar -->
+          <div class="dcard" id="dcard-tratti" style="grid-column:1; grid-row:1;">
+            <div class="dcard-title">STATO PSICOLOGICO</div>
+            <div class="dcard-body">
+              <svg class="dash-radar" viewBox="0 0 200 200" aria-label="Tratti narrativi">
+                <defs>
+                  <radialGradient id="dashRadarGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%"  stop-color="#4dd8e8" stop-opacity="0.55"/>
+                    <stop offset="100%" stop-color="#4dd8e8" stop-opacity="0.05"/>
+                  </radialGradient>
+                </defs>
+                <!-- Anelli concentrici -->
+                <polygon points="100,15 181.4,72 150.5,168 49.5,168 18.6,72" fill="none" stroke="#1a3848" stroke-width="0.5"/>
+                <polygon points="100,40 159.6,82 138.4,150 61.6,150 40.4,82" fill="none" stroke="#1a3848" stroke-width="0.5"/>
+                <polygon points="100,65 137.8,92 126.3,132 73.7,132 62.2,92" fill="none" stroke="#1a3848" stroke-width="0.5"/>
+                <polygon points="100,90 116,102 110,115 90,115 84,102" fill="none" stroke="#1a3848" stroke-width="0.5"/>
+                <!-- Assi -->
+                <line x1="100" y1="100" x2="100" y2="15"  stroke="#1a3848" stroke-width="0.5"/>
+                <line x1="100" y1="100" x2="181" y2="72"  stroke="#1a3848" stroke-width="0.5"/>
+                <line x1="100" y1="100" x2="150" y2="168" stroke="#1a3848" stroke-width="0.5"/>
+                <line x1="100" y1="100" x2="49"  y2="168" stroke="#1a3848" stroke-width="0.5"/>
+                <line x1="100" y1="100" x2="18"  y2="72"  stroke="#1a3848" stroke-width="0.5"/>
+                <!-- Poligono dati (popolato da JS) -->
+                <polygon id="dash-radar-fill" points="100,100 100,100 100,100 100,100 100,100"
+                         fill="url(#dashRadarGrad)" stroke="#4dd8e8" stroke-width="1.5"
+                         style="filter: drop-shadow(0 0 6px rgba(77,216,232,0.5)); transition: all 600ms ease-out;"/>
+                <!-- Vertici -->
+                <circle id="dash-radar-pt-0" cx="100" cy="100" r="3" fill="#80f0ff"/>
+                <circle id="dash-radar-pt-1" cx="100" cy="100" r="3" fill="#80f0ff"/>
+                <circle id="dash-radar-pt-2" cx="100" cy="100" r="3" fill="#80f0ff"/>
+                <circle id="dash-radar-pt-3" cx="100" cy="100" r="3" fill="#80f0ff"/>
+                <circle id="dash-radar-pt-4" cx="100" cy="100" r="3" fill="#80f0ff"/>
+                <!-- Etichette -->
+                <text x="100" y="9"   text-anchor="middle" fill="#8a9ab0" font-size="9" font-family="JetBrains Mono">CUR <tspan id="dash-tr-cur-lbl">--</tspan></text>
+                <text x="189" y="74"  text-anchor="start"  fill="#8a9ab0" font-size="9" font-family="JetBrains Mono">FID <tspan id="dash-tr-fid-lbl">--</tspan></text>
+                <text x="156" y="180" text-anchor="middle" fill="#8a9ab0" font-size="9" font-family="JetBrains Mono">CIN <tspan id="dash-tr-cin-lbl">--</tspan></text>
+                <text x="44"  y="180" text-anchor="middle" fill="#8a9ab0" font-size="9" font-family="JetBrains Mono">PAU <tspan id="dash-tr-pau-lbl">--</tspan></text>
+                <text x="11"  y="74"  text-anchor="end"    fill="#8a9ab0" font-size="9" font-family="JetBrains Mono">CAL <tspan id="dash-tr-cal-lbl">--</tspan></text>
+              </svg>
+              <div class="dcard-side">
+                <div class="kpi-big" id="dash-tr-mean">--</div>
+                <div class="kpi-label">Indice medio</div>
+                <div class="kpi-small" id="dash-rel-text">--</div>
+                <div class="kpi-label">Relazione</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: STATO AFFETTIVO donut -->
+          <div class="dcard" id="dcard-affective" style="grid-column:1; grid-row:2;">
+            <div class="dcard-title">STATO AFFETTIVO</div>
+            <div class="dcard-body">
+              <svg class="dash-donut" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#0e2840" stroke-width="9"/>
+                <circle id="dash-donut-arc" cx="50" cy="50" r="40" fill="none" stroke="#4dd8e8" stroke-width="9"
+                        stroke-dasharray="0 251" stroke-dashoffset="0"
+                        transform="rotate(-90 50 50)"
+                        style="transition: stroke-dasharray 600ms ease-out, stroke 400ms ease-out;
+                               filter: drop-shadow(0 0 4px rgba(77,216,232,0.5))"/>
+                <text id="dash-donut-val" x="50" y="50" text-anchor="middle" fill="#d4e0f0"
+                      font-family="Rajdhani" font-size="18" font-weight="600">--</text>
+                <text x="50" y="63" text-anchor="middle" fill="#8a9ab0"
+                      font-family="JetBrains Mono" font-size="7" letter-spacing="1.2">VALENZA</text>
+              </svg>
+              <div class="dcard-side mini-stack">
+                <div class="mini-stat"><span class="v" id="dash-af-aro" style="color:var(--rel-ally)">--</span><span class="l">Arousal</span></div>
+                <div class="mini-stat"><span class="v" id="dash-af-cer" style="color:var(--amber)">--</span><span class="l">Certezza</span></div>
+                <div class="mini-stat"><span class="v" id="dash-af-mood">--</span><span class="l">Mood</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: SESSIONE + MEMORIA -->
+          <div class="dcard" id="dcard-session" style="grid-column:1; grid-row:3;">
+            <div class="dcard-title">SESSIONE &amp; MEMORIA</div>
+            <div class="dcard-body block-col">
+              <div class="mini-grid">
+                <div class="mini-stat"><span class="v" id="dash-st-exch">--</span><span class="l">Scambi</span></div>
+                <div class="mini-stat"><span class="v" id="dash-st-sess">--</span><span class="l">Sessioni</span></div>
+                <div class="mini-stat"><span class="v" id="dash-st-mem">--</span><span class="l">Ricordi</span></div>
+                <div class="mini-stat"><span class="v" id="dash-st-hist">--</span><span class="l">Storia</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── HERO CENTRALE: synapse ── -->
+          <div class="dhero">
+            <div class="dhero-stats tl">
+              EDEN <span id="dhero-ver">v0.9.1</span><br>
+              UPTIME <span id="dhero-uptime">--:--:--</span><br>
+              MODEL <span id="dhero-model">gemma2:27b</span>
+            </div>
+            <div class="dhero-stats tr">
+              SESSION <span id="dhero-session">--</span><br>
+              EXCH <span id="dhero-exch">--</span><br>
+              IDLE <span id="dhero-idle">00:00</span>
+            </div>
+
+            <div class="dsynapse">
+              <div class="dsynapse-ring r4"></div>
+              <div class="dsynapse-ring r1"></div>
+              <div class="dsynapse-ring r2"></div>
+              <div class="dsynapse-ring r3"></div>
+              <div class="dsynapse-core"></div>
+              <div class="dsynapse-particle p1"></div>
+              <div class="dsynapse-particle p2"></div>
+              <div class="dsynapse-particle p3"></div>
+              <div class="dsynapse-particle p4"></div>
+              <div class="dsynapse-particle p5"></div>
+              <!-- Halo: episodi/ricordi che orbitano (step 6) -->
+              <div class="dsynapse-halo">
+                <div class="dsynapse-halo-spin">
+                  <span class="halo-dot d1"></span>
+                  <span class="halo-dot d2"></span>
+                  <span class="halo-dot d3"></span>
+                  <span class="halo-dot d4"></span>
+                  <span class="halo-dot d5"></span>
+                  <span class="halo-dot d6"></span>
+                  <span class="halo-dot d7"></span>
+                  <span class="halo-dot d8 flagged"></span>
+                  <span class="halo-dot d9"></span>
+                  <span class="halo-dot d10"></span>
+                  <span class="halo-dot d11"></span>
+                  <span class="halo-dot d12 fact"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="dhero-stats bl">
+              COHERENCE <span id="dhero-l1c">--</span><br>
+              GROUNDING <span id="dhero-l1g">--</span><br>
+              SELF-MODEL <span id="dhero-l1s">--</span>
+            </div>
+            <div class="dhero-stats br">
+              SOMATIC<br>
+              VRAM <span id="dhero-vram">-- GB</span><br>
+              AROUSAL <span id="dhero-arousal">--</span>
+            </div>
+
+            <div class="dhero-label">
+              SUBSTRATE &middot; <span class="name">EDEN</span> &middot; SYNAPSE 3D
+            </div>
+          </div>
+
+          <!-- ── COL DX ── -->
+
+          <!-- Card 4: AUTONOMIA -->
+          <div class="dcard" id="dcard-autonomy" style="grid-column:3; grid-row:1;">
+            <div class="dcard-title">AUTONOMIA &amp; SIC</div>
+            <div class="dcard-body block-col">
+              <div class="mini-grid">
+                <div class="mini-stat"><span class="v" id="dash-au-state">--</span><span class="l">Stato</span></div>
+                <div class="mini-stat"><span class="v" id="dash-au-dec">--</span><span class="l">Decisioni</span></div>
+                <div class="mini-stat"><span class="v" id="dash-au-mode" style="font-size:14px">--</span><span class="l">Modalita'</span></div>
+                <div class="mini-stat"><span class="v" id="dash-au-int" style="font-size:14px">--</span><span class="l">Intervallo</span></div>
+              </div>
+              <div class="sic-recent" id="dash-sic-recent">
+                <span class="kpi-label">Pensieri SIC recenti: <span id="dash-sic-count">0</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: EPISODI (placeholder, popolato in step 6) -->
+          <div class="dcard" id="dcard-episodes" style="grid-column:3; grid-row:2;">
+            <div class="dcard-title">EPISODI &middot; ULTIMI 7gg</div>
+            <div class="dcard-body block-col">
+              <div class="bars" id="dash-ep-bars">
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+                <div class="bar" style="height:0%"></div>
+              </div>
+              <div class="bar-labels">
+                <span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span>
+              </div>
+              <div class="kpi-label" style="margin-top:8px">
+                Totale: <span id="dash-ep-total" style="color:var(--accent-hi)">--</span> &middot;
+                Avg sig: <span id="dash-ep-avg">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: GRAPH KUZU -->
+          <div class="dcard" id="dcard-graph" style="grid-column:3; grid-row:3;">
+            <div class="dcard-title">GRAPH MEMORY &middot; KUZU</div>
+            <div class="dcard-body block-col">
+              <div class="mini-grid">
+                <div class="mini-stat"><span class="v" id="dash-kz-ep">--</span><span class="l">Episode</span></div>
+                <div class="mini-stat"><span class="v" id="dash-kz-fc" style="color:var(--accent-hi)">--</span><span class="l">Fact</span></div>
+                <div class="mini-stat"><span class="v" id="dash-kz-cc">--</span><span class="l">Concept</span></div>
+                <div class="mini-stat"><span class="v" id="dash-kz-tr" style="color:var(--rel-ally)">--</span><span class="l">Trait</span></div>
+              </div>
+              <div class="kpi-label" style="margin-top:6px">
+                Last sleep: <span id="dash-kz-sleep" style="color:var(--accent-hi)">--</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /dash-grid -->
+
+        <!-- ╔════ FOOTER STRIP: chat ticker + KPI ════╗ -->
+        <div class="dfooter">
+
+          <div class="dfcard dfchat">
+            <div class="dfcard-title">CHANNEL &middot; LIVE</div>
+            <div class="dfchat-body">
+              <div class="dfchat-last" id="dash-chat-last">
+                <span class="who" id="dash-chat-who">EDEN</span>
+                <span class="msg" id="dash-chat-msg">in attesa di un messaggio…</span>
+              </div>
+              <button class="dfchat-open" id="dash-chat-open" type="button">APRI CHAT &rsaquo;</button>
+            </div>
+          </div>
+
+          <div class="dfcard">
+            <div class="dfcard-title">COHERENCE</div>
+            <div class="dfkpi"><span class="v" id="dash-fk-coh">--</span><span class="u">budget</span></div>
+            <div class="spark" id="dash-spk-coh"></div>
+          </div>
+
+          <div class="dfcard">
+            <div class="dfcard-title">GROUNDING</div>
+            <div class="dfkpi"><span class="v" id="dash-fk-grn">--</span><span class="u">integrity</span></div>
+            <div class="spark" id="dash-spk-grn"></div>
+          </div>
+
+          <div class="dfcard">
+            <div class="dfcard-title">SOMATIC AROUSAL</div>
+            <div class="dfkpi"><span class="v" id="dash-fk-som" style="color:var(--amber)">--</span><span class="u">live</span></div>
+            <div class="spark" id="dash-spk-som"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Sezione Debug (iframe lazy-loaded) ─────────────────────────── -->
+    <div id="section-debug" class="page-section hidden">
+      <iframe id="iframe-debug" title="Debug Panel"></iframe>
+    </div>
+
+    <!-- ── Sezione Log Panel (iframe lazy-loaded) ──────────────────────── -->
+    <div id="section-logs" class="page-section hidden">
+      <iframe id="iframe-logs" title="Log Panel"></iframe>
+    </div>
+
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

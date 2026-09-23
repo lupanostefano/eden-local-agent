@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>OBSERVABILITY — EDEN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@300;400;500&family=Orbitron:wght@500;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, monospace;
+      background: #000305;
+      color: #d4e0f0;
+      padding: 16px 20px;
+      height: 100vh;
+      height: 100dvh;             /* iOS Safari: usa dynamic viewport height
+                                     (con fallback 100vh) per evitare il salto
+                                     di layout quando l'address bar scompare */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      overscroll-behavior: contain;
+    }
+
+    body::before {
+      content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+      background: repeating-linear-gradient(0deg,
+        rgba(255,255,255,0.012) 0, rgba(255,255,255,0.012) 1px,
+        transparent 1px, transparent 3px);
+    }
+
+    /* Step 7/8: background radiale + grid coerente con dashboard */
+    body {
+      background-color: #000305;
+      background-image:
+        radial-gradient(ellipse 100% 80% at 50% 30%, #0a0e18 0%, transparent 65%),
+        linear-gradient(rgba(77,216,232,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(77,216,232,0.018) 1px, transparent 1px);
+      background-size: auto, 60px 60px, 60px 60px;
+    }
+    body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9990;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 3px);
+      opacity: 0.7;
+    }
+    .page-header h1 {
+      font-family: 'Orbitron','JetBrains Mono',monospace;
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.4em !important;
+      text-transform: uppercase;
+      color: #60eeff !important;
+      text-shadow: 0 0 14px rgba(77,216,232,0.45);
+    }
+
+    /* ── scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0a0a0e; }
+    ::-webkit-scrollbar-thumb { background: #2a2a33; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4dd8e8; }
+
+    /* ── header ── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #2a2a33; padding-bottom: 10px; margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .page-header h1 {
+      font-size: 16px; font-weight: normal; letter-spacing: 4px; color: #4dd8e8;
+    }
+    .live-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #555; margin-right: 5px; vertical-align: middle;
+    }
+    .live-dot.on  { background: #4dd8e8; box-shadow: 0 0 5px #4dd8e8; animation: blink 2s infinite; }
+    .live-dot.err { background: #ff3333; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── tabs ── */
+    .tab-bar {
+      display: flex; gap: 0; border-bottom: 1px solid #2a2a33;
+      flex-shrink: 0; margin-top: 10px;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #666; padding: 7px 18px; font-family: 'Share Tech Mono', monospace;
+      font-size: 10px; letter-spacing: 2px; cursor: pointer; transition: all .15s;
+      text-transform: uppercase;
+    }
+    .tab-btn:hover { color: #9cc; }
+    .tab-btn.active { color: #4dd8e8; border-bottom-color: #4dd8e8; }
+
+    /* ── tab panels ── */
+    .tab-panel {
+      display: none; flex: 1; min-height: 0; overflow-y: auto; padding-top: 12px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+    .tab-panel.active { display: flex; flex-direction: column; }
+
+    /* ── section header ── */
+    .sec-hdr {
+      font-size: 10px; letter-spacing: 3px; color: #4dd8e8;
+      border-bottom: 1px solid #1a2a33; padding-bottom: 4px;
+      margin: 14px 0 8px; text-transform: uppercase;
+    }
+    .sec-hdr:first-child { margin-top: 0; }
+
+    /* ── buttons / inputs ── */
+    button, select, input[type=text] {
+      background: #0f0f13; border: 1px solid #2a2a33; color: #c0c0c0;
+      padding: 5px 10px; font-family: 'Share Tech Mono', monospace;
+      font-size: 11px; cursor: pointer; letter-spacing: 1px;
+    }
+    button:hover { border-color: #4dd8e8; color: #4dd8e8; }
+    button.active { background: #0a2a3a; border-color: #4dd8e8; color: #4dd8e8; }
+    input[type=text]:focus, select:focus { outline: none; border-color: #4dd8e8; }
+
+    /* ── health grid ── */
+    .health-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px;
+      margin-bottom: 4px;
+    }
+    .hcard {
+      padding: 8px 10px; background: #050a14;
+      border: 1px solid #0e1a30; border-left: 3px solid #1a2a4a;
+      position: relative;
+    }
+    .hcard::before, .hcard::after {
+      content: ''; position: absolute; width: 5px; height: 5px;
+      border-color: #4dd8e8; border-style: solid; opacity: 0.45;
+    }
+    .hcard::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+    .hcard::after  { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+    .hcard .hc-name   { color: #8aa; letter-spacing: 2px; font-size: 9px; margin-bottom: 3px; }
+    .hcard .hc-status { font-size: 11px; font-weight: bold; }
+    .hcard .hc-detail { color: #888; font-size: 9px; margin-top: 2px; word-break: break-word; }
+    .hcard.HEALTHY  { border-left-color: #4dd8e8; } .hcard.HEALTHY  .hc-status { color: #4dd8e8; }
+    .hcard.DEGRADED { border-left-color: #ffaa00; } .hcard.DEGRADED .hc-status { color: #ffaa00; }
+    .hcard.DOWN     { border-left-color: #ff3333; background: rgba(255,51,51,.04); }
+                                                     .hcard.DOWN     .hc-status { color: #ff3333; }
+    .hcard.UNKNOWN  .hc-status { color: #555; }
+
+    /* ── metric bars ── */
+    .metric-list { display: flex; flex-direction: column; gap: 8px; }
+    .metric-row { display: flex; align-items: center; gap: 10px; }
+    .metric-label { font-size: 10px; color: #8aa; letter-spacing: 1px; width: 160px; flex-shrink: 0; }
+    .metric-val   { font-size: 11px; color: #c0c0c0; width: 40px; flex-shrink: 0; text-align: right; }
+    .metric-bar-wrap { flex: 1; background: #1a1a22; height: 4px; border-radius: 2px; }
+    .metric-bar-fill { height: 4px; border-radius: 2px; transition: width .4s, background .4s; }
+
+    /* ── modulation block ── */
+    .mod-block {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      background: #0a0a0e; border: 1px solid #2a2a33; padding: 8px 12px;
+      margin-top: 8px; font-size: 10px;
+    }
+    .mod-item { display: flex; flex-direction: column; gap: 2px; }
+    .mod-key  { color: #8aa; letter-spacing: 1px; font-size: 9px; }
+    .mod-val  { color: #c0c0c0; }
+
+    /* ── somatic grid ── */
+    .somatic-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+      margin-bottom: 6px;
+    }
+    .somatic-cell {
+      background: #0a0a0e; border: 1px solid #2a2a33; padding: 8px 10px;
+    }
+    .somatic-cell .sc-name { font-size: 9px; color: #8aa; letter-spacing: 1px; margin-bottom: 4px; }
+    .somatic-cell .sc-val  { font-size: 13px; color: #c0c0c0; }
+    .somatic-raw { font-size: 10px; color: #666; margin-top: 4px; }
+
+    /* ── session block ── */
+    .session-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    }
+    .session-cell {
+      background: #0a0a0e; border: 1px solid #2a2a33; padding: 10px;
+    }
+    .session-cell .s-label { font-size: 9px; color: #8aa; letter-spacing: 1px; margin-bottom: 4px; }
+    .session-cell .s-val   { font-size: 14px; color: #4dd8e8; }
+
+    /* ── logs tab ── */
+    .filter-row {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 8px 10px; background: #0a0a0e; border: 1px solid #2a2a33;
+      margin-bottom: 8px; flex-shrink: 0;
+    }
+    .filter-group { display: flex; gap: 4px; align-items: center; }
+    .filter-group label { font-size: 10px; color: #555; letter-spacing: 1px; margin-right: 3px; }
+    .sev-toggle { padding: 3px 8px; font-size: 10px; border: 1px solid #2a2a33; background: #06060a; cursor: pointer; letter-spacing: 1px; }
+    .sev-toggle.on.DEBUG    { background: #111; color: #888; border-color: #555; }
+    .sev-toggle.on.INFO     { background: #0a2a3a; color: #4dd8e8; border-color: #4dd8e8; }
+    .sev-toggle.on.WARNING  { background: #2a2000; color: #ffaa00; border-color: #ffaa00; }
+    .sev-toggle.on.ERROR    { background: #2a0000; color: #ff6666; border-color: #ff6666; }
+    .sev-toggle.on.CRITICAL { background: #3a0000; color: #ff3333; border-color: #ff3333; }
+    .sev-toggle:not(.on)    { opacity: .4; }
+    .sev-counts { font-size: 10px; color: #555; margin-left: auto; }
+    .sev-counts span { margin-left: 8px; }
+    .sev-counts .c-DEBUG    { color: #666; }
+    .sev-counts .c-INFO     { color: #4dd8e8; }
+    .sev-counts .c-WARNING  { color: #ffaa00; }
+    .sev-counts .c-ERROR    { color: #ff6666; }
+    .sev-counts .c-CRITICAL { color: #ff3333; }
+
+    .logs-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      border: 1px solid #2a2a33; background: #0a0a0e; overflow: hidden; min-height: 0;
+    }
+    .logs-scroll {
+      flex: 1; overflow-y: auto; padding: 5px;
+      /* iOS momentum scroll smooth + previene bounce-up rimbalzo durante rebuild */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+    .log-entry {
+      padding: 4px 8px 4px 10px; margin-bottom: 2px;
+      border-left: 3px solid #333; font-size: 11px; line-height: 1.45;
+      word-break: break-word;
+      display: grid; grid-template-columns: 70px 80px 130px 1fr auto; gap: 8px;
+      align-items: start;
+    }
+    .log-entry:hover { background: rgba(77,216,232,.04); }
+    .log-entry.updated { animation: flash .6s; }
+    @keyframes flash { 0%{background:rgba(77,216,232,.25)} 100%{background:transparent} }
+    .log-entry.DEBUG    { border-left-color: #555; color: #777; }
+    .log-entry.INFO     { border-left-color: #4dd8e8; }
+    .log-entry.WARNING  { border-left-color: #ffaa00; color: #ffcc66; }
+    .log-entry.ERROR    { border-left-color: #ff6666; color: #ff9999; }
+    .log-entry.CRITICAL { border-left-color: #ff3333; color: #ffcccc; background: rgba(255,51,51,.05); font-weight: bold; }
+    .log-ts   { color: #555; font-size: 10px; }
+    .log-sev  { font-weight: bold; font-size: 10px; letter-spacing: 1px; }
+    .log-mod  { color: #8aa; font-size: 10px; letter-spacing: 1px; }
+    .log-msg  { color: inherit; }
+    .log-cnt  { background: #4dd8e8; color: #000; padding: 1px 5px; border-radius: 8px; font-size: 9px; font-weight: bold; }
+    .log-cnt.hidden { display: none; }
+    .logs-footer {
+      display: flex; justify-content: space-between; padding: 5px 10px;
+      border-top: 1px solid #2a2a33; font-size: 10px; color: #555; flex-shrink: 0;
+    }
+
+    /* ── correzioni tab ── */
+    .tab-toolbar {
+      display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-shrink: 0;
+    }
+    .badge {
+      background: #1a2a33; color: #4dd8e8; border: 1px solid #2a4a5a;
+      padding: 2px 8px; font-size: 10px; letter-spacing: 1px; border-radius: 2px;
+    }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    .data-table th {
+      text-align: left; font-size: 9px; letter-spacing: 2px; color: #4dd8e8;
+      border-bottom: 1px solid #2a2a33; padding: 6px 8px; font-weight: normal;
+      position: sticky; top: 0; background: #06060a; z-index: 2;
+    }
+    .data-table td { padding: 5px 8px; border-bottom: 1px solid #1a1a22; vertical-align: top; }
+    .data-table tr:hover td { background: rgba(77,216,232,.03); }
+    .method-regex { color: #4dd8e8; } .method-llm { color: #ffaa00; } .method-none { color: #666; }
+    .ck-yes { color: #4caf72; } .ck-no  { color: #555; }
+    .fact-pair { display: inline-block; margin: 1px 4px 1px 0; }
+    .fact-key  { color: #8aa; } .fact-arrow { color: #555; margin: 0 3px; } .fact-val { color: #c0c0c0; }
+    .empty-state { color: #555; font-size: 11px; padding: 24px 0; text-align: center; }
+
+    /* ── ricerca tab ── */
+    .facts-table-wrap { overflow-x: auto; }
+    .dna-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;
+      margin-bottom: 4px;
+    }
+    .dna-card {
+      background: #0a0a0e; border: 1px solid #2a2a33; border-left: 3px solid #ffaa00;
+      padding: 9px 11px;
+    }
+    .dna-concept { color: #ffaa00; font-size: 10px; letter-spacing: 2px; margin-bottom: 4px; }
+    .dna-rule    { color: #c0c0c0; font-size: 10px; line-height: 1.5; margin-bottom: 5px; }
+    .dna-meta    { font-size: 9px; color: #666; display: flex; gap: 10px; }
+    .sleep-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+    .sleep-stat  { background: #0a0a0e; border: 1px solid #2a2a33; padding: 7px 12px; }
+    .sleep-stat .ss-label { font-size: 9px; color: #8aa; letter-spacing: 1px; margin-bottom: 3px; }
+    .sleep-stat .ss-val   { font-size: 13px; color: #c0c0c0; }
+    .graph-totals { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    .gtot { background: #0a0a0e; border: 1px solid #2a2a33; padding: 6px 12px; font-size: 10px; }
+    .gtot span { color: #4dd8e8; font-size: 13px; display: block; margin-top: 2px; }
+    .sc-dims { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+    .sc-dim-cell { background: #0a0a0e; border: 1px solid #2a2a33; padding: 7px 10px; min-width: 80px; }
+    .sc-dim-label { font-size: 9px; color: #8aa; letter-spacing: 1px; margin-bottom: 4px; }
+    .sc-dim-val   { font-size: 12px; color: #c0c0c0; }
+    .sc-bar-wrap  { background: #1a1a22; height: 3px; margin-top: 4px; border-radius: 2px; }
+    .sc-bar-fill  { height: 3px; border-radius: 2px; background: #4dd8e8; }
+    .sc-score-big { font-size: 26px; color: #4dd8e8; margin: 6px 0 2px; }
+    .sc-meta      { font-size: 10px; color: #666; }
+    /* -- graph tab -- */
+    #tab-graph { overflow:hidden;padding:0; }
+    #tab-graph.active { flex-direction:column; }
+    .graph-toolbar { display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;background:#07070d;border-bottom:1px solid #131320;flex-shrink:0; }
+    .graph-filters { display:flex;gap:5px;flex-wrap:wrap;align-items:center; }
+    .gf-sep   { width:1px;background:#1a1a22;align-self:stretch;margin:0 4px; }
+    .gf-label { font-size:9px;color:#334;letter-spacing:1px; }
+    .gf-btn   { background:#0a0a0e;border:1px solid #1e1e28;color:#334;padding:3px 8px;font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;letter-spacing:1px;border-radius:2px;transition:all .15s; }
+    .gf-btn.active { border-color:var(--c);color:var(--c);text-shadow:0 0 6px var(--c)66; }
+    .graph-btn { background:transparent;border:1px solid #2a2a33;color:#4dd8e8;padding:4px 10px;font-family:'Share Tech Mono',monospace;font-size:9px;cursor:pointer;letter-spacing:1px;margin-left:auto; }
+    .graph-btn:hover { border-color:#4dd8e8;background:#0a1218; }
+    .graph-counts { display:flex;gap:10px;padding:0 4px; }
+    .gc-item { display:flex;flex-direction:column;align-items:center;line-height:1; }
+    .gc-val  { font-size:14px;margin-bottom:1px; }
+    .gc-lbl  { font-size:8px;color:#334;letter-spacing:1px; }
+    .graph-wrap { position:relative;flex:1;min-height:0;display:flex;overflow:hidden; }
+    /* graphMount: il graph 3D usa Three.js OrbitControls. Su mobile lasciamo
+       pan-y per permettere lo scroll verticale della pagina con un dito sul
+       canvas; per ruotare il grafo basta usare due dita (pinch-zoom) o usare
+       il drag esplicito sui nodi. Senza pan-y, su iPhone il grafo "intrappola"
+       il dito e la pagina sembra "tornare in cima" durante il momentum scroll. */
+    #graphMount { flex:1;background:#06060a;overflow:hidden;touch-action:pan-y; }
+    #tab-logs   { overflow:hidden; }
+    .graph-legend-bar { display:flex;gap:10px;flex-wrap:wrap;padding:5px 14px;background:#060610;border-top:1px solid #0f0f1c;font-size:9px;color:#334;letter-spacing:1px;flex-shrink:0;align-items:center; }
+    .gl-dot  { display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:3px; }
+    .gl-line { display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:3px;border-radius:1px; }
+    .graph-info { text-align:center;font-size:8px;color:#1e1e2e;padding:2px 0;flex-shrink:0; }
+    .graph-tooltip { position:fixed;pointer-events:none;background:#0b0b14;border:1px solid #1e1e2e;color:#c0c0c0;font-size:10px;padding:8px 12px;display:none;z-index:9999;max-width:300px;line-height:1.7; }
+    /* side detail panel */
+    #graphDetail { position:absolute;right:0;top:0;bottom:0;width:270px;background:#08080f;border-left:1px solid #131320;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .2s ease;z-index:10; }
+    #graphDetail.open { transform:translateX(0); }
+
+    /* ══ iOS Safari: previeni auto-zoom su input focus ══ */
+    @media (hover:none) {
+      input, select, textarea { font-size: max(16px, 1em); }
+    }
+
+    /* ══ Mobile ≤ 600px ══════════════════════════════════ */
+    @media (max-width: 600px) {
+      /* Safe-area: solo .page-header assorbe il Dynamic Island.
+         body rimane height:100dvh+overflow:hidden intatto. */
+      .page-header {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+      }
+      /* Tab bar scrollabile orizzontalmente */
+      .tab-bar { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .tab-bar::-webkit-scrollbar { display: none; }
+      .tab-btn { flex-shrink: 0; scroll-snap-align: start; min-height: 44px; padding: 0 14px; }
+
+      /* Health: 3 colonne invece di 6 */
+      .health-grid { grid-template-columns: repeat(3, 1fr); }
+      /* Somatic: 3 colonne invece di 5 */
+      .somatic-grid { grid-template-columns: repeat(3, 1fr); }
+      /* Session: 2 colonne invece di 4 */
+      .session-grid { grid-template-columns: repeat(2, 1fr); }
+
+      /* Filter row: impila verticalmente, input full-width */
+      .filter-row { flex-direction: column; align-items: stretch; gap: 6px; }
+      .filter-group { flex-wrap: wrap; }
+      .filter-group label { width: 100%; margin-bottom: 2px; }
+      #filterSearch { width: 100%; box-sizing: border-box; }
+      #filterModule { width: 100%; }
+      .sev-counts { margin-left: 0; }
+      /* Bottoni filter ≥ 40px */
+      .filter-row button, .filter-row select { min-height: 40px; }
+      .sev-toggle { min-height: 40px; padding: 6px 8px; }
+
+      /* Log entry: flatten il grid a 5 colonne — usa flex wrap */
+      .log-entry {
+        display: flex; flex-wrap: wrap; gap: 1px 6px;
+        grid-template-columns: none;
+      }
+      .log-ts  { flex: 0 0 auto; }
+      .log-sev { flex: 0 0 auto; font-size: 9px; }
+      .log-mod { flex: 0 0 100%; font-size: 9px; padding-top: 1px; }
+      .log-msg { flex: 0 0 100%; }
+      .log-cnt { flex: 0 0 auto; }
+
+      /* Graph detail: full-width su mobile */
+      #graphDetail { width: 100%; border-left: none; border-top: 1px solid #131320; top: auto; bottom: 0; height: 55%; transform: translateY(100%); transition: transform .2s ease; }
+      #graphDetail.open { transform: translateY(0); }
+      .graph-tooltip { max-width: calc(100vw - 24px); }
+      /* Metric label più corto su mobile */
+      .metric-label { width: 120px; font-size: 9px; }
+    }
+
+    /* Landscape smartphone */
+    @media (max-width: 900px) and (orientation: landscape) {
+      .health-grid { grid-template-columns: repeat(3, 1fr); }
+      .somatic-grid { grid-template-columns: repeat(5, 1fr); }
+    }
+    .gd-header { padding:12px 36px 10px 14px;border-bottom:1px solid #131320;flex-shrink:0; }
+    .gd-type { font-size:9px;letter-spacing:2px;margin-bottom:5px; }
+    .gd-label { font-size:13px;color:#dde;word-break:break-word;line-height:1.35; }
+    .gd-body { padding:10px 14px;overflow-y:auto;flex:1;font-size:10px; }
+    .gd-row { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #0d0d18; }
+    .gd-key { color:#445; }
+    .gd-val { color:#aab;text-align:right;max-width:160px;word-break:break-word; }
+    .gd-section { font-size:8px;letter-spacing:2px;color:#334;margin:12px 0 5px;text-transform:uppercase; }
+    .gd-summary { color:#89a;font-style:italic;line-height:1.6;margin-bottom:8px;font-size:10px; }
+    .gd-conn { margin-bottom:3px;font-size:9px;color:#445;padding:3px 6px 3px 8px;border-left:2px solid transparent; }
+    .gd-close { position:absolute;top:7px;right:10px;background:none;border:none;color:#334;font-size:18px;cursor:pointer;padding:2px 6px; }
+    .gd-close:hover { color:#aab; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>OBSERVABILITY — EDEN</h1>
+  <span style="font-size:10px;color:#555;">
+    <span class="live-dot" id="liveDot"></span>
+    <span id="streamStatus">—</span>
+  </span>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="overview">OVERVIEW</button>
+  <button class="tab-btn" data-tab="logs">LOGS</button>
+  <button class="tab-btn" data-tab="correzioni">CORREZIONI</button>
+  <button class="tab-btn" data-tab="ricerca">RICERCA</button>
+  <button class="tab-btn" data-tab="graph">GRAPH</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB: OVERVIEW
+═══════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-overview">
+
+  <div class="sec-hdr">HEALTH</div>
+  <div class="health-grid" id="healthGrid"></div>
+
+  <div class="sec-hdr">LAYER 1 — SUBSTRATO OMEOSTATICO</div>
+  <div class="metric-list" id="metricList"></div>
+  <div class="mod-block" id="modBlock" style="margin-top:8px;"></div>
+
+  <div class="sec-hdr">SOMATIC STATE</div>
+  <div class="somatic-grid" id="somaticGrid"></div>
+  <div class="somatic-raw" id="somaticRaw"></div>
+
+  <div class="sec-hdr">SESSIONE CORRENTE</div>
+  <div class="session-grid" id="sessionGrid"></div>
+
+  <div style="height:16px;flex-shrink:0;"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB: LOGS
+═══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-logs">
+  <div class="filter-row">
+    <div class="filter-group">
+      <label>SEV</label>
+      <button class="sev-toggle on DEBUG"    data-sev="DEBUG">DEBUG</button>
+      <button class="sev-toggle on INFO"     data-sev="INFO">INFO</button>
+      <button class="sev-toggle on WARNING"  data-sev="WARNING">WARN</button>
+      <button class="sev-toggle on ERROR"    data-sev="ERROR">ERROR</button>
+      <button class="sev-toggle on CRITICAL" data-sev="CRITICAL">CRIT</button>
+    </div>
+    <div class="filter-group">
+      <label>MODULE</label>
+      <select id="filterModule"><option value="">— all —</option></select>
+    </div>
+    <div class="filter-group">
+      <label>SEARCH</label>
+      <input type="text" id="filterSearch" placeholder="substring..." style="width:180px;">
+    </div>
+    <button id="btnPause">PAUSE</button>
+    <button id="btnClear">CLEAR</button>
+    <button id="btnExport">EXPORT</button>
+    <button id="btnHealthRun">WATCHDOG ▶</button>
+    <div class="sev-counts" id="sevCounts"></div>
+  </div>
+
+  <div class="logs-wrap">
+    <div class="logs-scroll" id="logsScroll"></div>
+    <div class="logs-footer">
+      <span>Visibili: <span id="visibleCount">0</span> / Buffer: <span id="totalCount">0</span></span>
+      <span>Auto-scroll: <span id="autoScrollStatus">on</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB: CORREZIONI
+═══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-correzioni">
+  <div class="tab-toolbar">
+    <button id="btnRefreshCorr">REFRESH</button>
+    <span class="badge" id="corrCount">0 correzioni</span>
+  </div>
+  <div style="flex:1;overflow-y:auto;">
+    <table class="data-table" id="corrTable">
+      <thead>
+        <tr>
+          <th>TIMESTAMP</th>
+          <th>METODO</th>
+          <th>CHIAVE → VALORE</th>
+          <th>KUZU</th>
+          <th>WM</th>
+          <th>MESSAGGIO UTENTE</th>
+        </tr>
+      </thead>
+      <tbody id="corrBody">
+        <tr><td colspan="6" class="empty-state">Caricamento…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB: RICERCA
+═══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-ricerca">
+
+  <div class="sec-hdr">KUZU GRAPH — FACTS STRUTTURATI</div>
+  <div class="graph-totals" id="graphTotals"></div>
+  <div class="facts-table-wrap">
+    <table class="data-table" id="factsTable">
+      <thead>
+        <tr><th>CHIAVE</th><th>VALORE</th><th>CONFIDENZA</th><th>SORGENTE</th></tr>
+      </thead>
+      <tbody id="factsBody">
+        <tr><td colspan="4" class="empty-state">Caricamento…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sec-hdr">DNA NODES</div>
+  <div class="dna-grid" id="dnaGrid">
+    <div class="empty-state">Caricamento…</div>
+  </div>
+
+  <div class="sec-hdr">DIGITAL SLEEP</div>
+  <div class="sleep-stats" id="sleepStats"></div>
+
+  <div class="sec-hdr">SELF-CONTINUITY METRIC</div>
+  <div id="scBlock">
+    <div class="empty-state">Caricamento…</div>
+  </div>
+
+  <div style="height:16px;flex-shrink:0;"></div>
+</div>
+
+<!-- ═══════ TAB GRAPH ════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-graph">
+  <div class="graph-toolbar">
+    <div class="graph-filters" id="graphFilters">
+      <span class="gf-label">NODI</span>
+      <button class="gf-btn active" data-ftype="DNA"     style="--c:#00e5ff">DNA</button>
+      <button class="gf-btn active" data-ftype="Fact"    style="--c:#ffd700">FACT</button>
+      <button class="gf-btn active" data-ftype="Trait"   style="--c:#cc88ff">TRAIT</button>
+      <button class="gf-btn active" data-ftype="Concept" style="--c:#4488aa">CONCEPT</button>
+      <button class="gf-btn"        data-ftype="Episode" style="--c:#44cc88">EPISODE</button>
+      <div class="gf-sep"></div>
+      <span class="gf-label">STATUS</span>
+      <button class="gf-btn active" data-epstatus="verified" style="--c:#44cc88">✓ VERIFIED</button>
+      <button class="gf-btn active" data-epstatus="flagged"  style="--c:#ff5555">⚑ FLAGGED</button>
+      <button class="gf-btn active" data-epstatus="unknown"  style="--c:#4dd8e8">? UNKNOWN</button>
+    </div>
+    <button class="graph-btn" id="btnRefreshGraph">↺ REFRESH</button>
+    <div class="graph-counts" id="graphCounts"></div>
+  </div>
+  <div class="graph-wrap">
+    <div id="graphMount"></div>
+    <div id="graphDetail">
+      <button class="gd-close" id="graphDetailClose">×</button>
+      <div class="gd-header">
+        <div class="gd-type" id="gdType"></div>
+        <div class="gd-label" id="gdLabel"></div>
+      </div>
+      <div class="gd-body" id="gdBody"></div>
+    </div>
+  </div>
+  <div class="graph-legend-bar">
+    <span style="color:#223;margin-right:4px;">LINK:</span>
+    <span><span class="gl-line" style="background:#00e5ff;box-shadow:0 0 4px #00e5ff88"></span>CRYSTALLIZED</span>
+    <span><span class="gl-line" style="background:#ff3333"></span>CONTRADICTS</span>
+    <span><span class="gl-line" style="background:#00dd66"></span>REINFORCES</span>
+    <span><span class="gl-line" style="background:#4dd8e8"></span>ABOUT</span>
+    <span><span class="gl-line" style="background:#ffd700"></span>FACT_REL</span>
+    <span><span class="gl-line" style="background:#2a4a5a"></span>CONCEPT_REL</span>
+    <span><span class="gl-line" style="background:#cc88ff"></span>SHAPED_BY</span>
+    <span><span class="gl-line" style="background:#ff8844"></span>MENTIONS_FACT</span>
+  </div>
+  <div id="graphTooltip" class="graph-tooltip"></div>
+  <div id="graphInfo" class="graph-info"></div>
+</div>
+
+<script>
+  // ═══ helpers ═══════════════════════════════════════════════════════════
+  function esc(t) {
+    const d = document.createElement('div');
+    d.textContent = (t == null ? '' : String(t));
+    return d.innerHTML;
+  }
+  function fmt2(v) { return (v == null) ? '—' : Number(v).toFixed(2); }
+  function fmtTs(s) {
+    if (!s) return '—';
+    try { return new Date(s).toLocaleString('it-IT',{hour12:false}); } catch(e){ return s; }
+  }
+  function barColor(v) {
+    if (v >= .6) return '#4dd8e8';
+    if (v >= .4) return '#ffaa00';
+    return '#ff3333';
+  }
+
+  // ═══ tab switching ══════════════════════════════════════════════════════
+  const tabBtns   = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  let corrLoaded = false, ricercaLoaded = false, sseStarted = false, graphLoaded = false;
+
+  tabBtns.forEach(btn => btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabPanels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const id = 'tab-' + btn.dataset.tab;
+    document.getElementById(id).classList.add('active');
+    if (btn.dataset.tab === 'logs' && !sseStarted) { sseStarted = true; startStream(); }
+    if (btn.dataset.tab === 'correzioni' && !corrLoaded) { corrLoaded = true; loadCorrezioni(); }
+    if (btn.dataset.tab === 'ricerca' && !ricercaLoaded) { ricercaLoaded = true; loadRicerca(); }
+    if (btn.dataset.tab === 'graph'   && !graphLoaded)   { graphLoaded = true; setTimeout(loadGraphViz, 50); }
+  }));
+
+  // ═══ OVERVIEW ══════════════════════════════════════════════════════════
+  const HEALTH_KEYS = [
+    {key:'observer',label:'OBSERVER'},
+    {key:'inner_stream',label:'SIC-1'},
+    {key:'emotional_elaboration',label:'SIC-2'},
+    {key:'ollama',label:'OLLAMA'},
+    {key:'disk',label:'DISK'},
+  ];
+
+  async function loadOverview() {
+    await Promise.all([loadHealth(), loadLayer1(), loadSomatic(), loadSession()]);
+  }
+
+  async function loadHealth() {
+    const hg = document.getElementById('healthGrid');
+    try {
+      const [rh, rg] = await Promise.all([
+        fetch('/api/logs/health').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/research/graph/status').then(r=>r.json()).catch(()=>({})),
+      ]);
+      const checks = rh.checks || {};
+      const cards = HEALTH_KEYS.map(m => {
+        const c = checks[m.key] || {};
+        const st = c.status || 'UNKNOWN';
+        return `<div class="hcard ${esc(st)}">
+          <div class="hc-name">${esc(m.label)}</div>
+          <div class="hc-status">${esc(st)}</div>
+          <div class="hc-detail">${esc(c.detail || '—')}</div>
+        </div>`;
+      });
+      const gst = rg.status || 'UNKNOWN';
+      const gepCount = rg.episode_count != null ? rg.episode_count + ' ep' : '—';
+      cards.push(`<div class="hcard ${esc(gst)}">
+        <div class="hc-name">GRAPH</div>
+        <div class="hc-status">${esc(gst)}</div>
+        <div class="hc-detail">${esc(gepCount)}</div>
+      </div>`);
+      hg.innerHTML = cards.join('');
+    } catch(e) { hg.innerHTML = '<div style="color:#ff3333;font-size:10px;">errore caricamento health</div>'; }
+  }
+
+  async function loadLayer1() {
+    const ml = document.getElementById('metricList');
+    const mb = document.getElementById('modBlock');
+    try {
+      const j = await fetch('/api/research/status').then(r=>r.json());
+      const hs = (j.homeostatic_state || j) || {};
+      const metrics = [
+        {key:'coherence_budget',   label:'COHERENCE BUDGET'},
+        {key:'grounding_integrity',label:'GROUNDING INTEGRITY'},
+        {key:'self_model_stability',label:'SELF-MODEL STABILITY'},
+      ];
+      ml.innerHTML = metrics.map(m => {
+        const v = hs[m.key] != null ? hs[m.key] : (hs.metrics && hs.metrics[m.key] != null ? hs.metrics[m.key] : null);
+        const vn = v != null ? Number(v) : null;
+        const pct = vn != null ? Math.max(0, Math.min(1, vn)) * 100 : 0;
+        const col = vn != null ? barColor(vn) : '#444';
+        return `<div class="metric-row">
+          <div class="metric-label">${esc(m.label)}</div>
+          <div class="metric-val" style="color:${col}">${vn != null ? fmt2(vn) : '—'}</div>
+          <div class="metric-bar-wrap"><div class="metric-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+        </div>`;
+      }).join('');
+      const mod = hs.modulazione || hs.modulation || {};
+      mb.innerHTML = [
+        {k:'temperature_delta', label:'TEMP DELTA'},
+        {k:'length_multiplier', label:'LEN MULT'},
+        {k:'block_proactive',   label:'BLOCK PRO'},
+        {k:'force_reflection',  label:'FORCE REFL'},
+      ].map(x => {
+        const val = mod[x.k];
+        return `<div class="mod-item"><div class="mod-key">${esc(x.label)}</div><div class="mod-val">${val != null ? esc(String(val)) : '—'}</div></div>`;
+      }).join('');
+    } catch(e) { ml.innerHTML = '<div style="color:#ff3333;font-size:10px;">errore layer1</div>'; }
+  }
+
+  async function loadSomatic() {
+    const sg = document.getElementById('somaticGrid');
+    const sr = document.getElementById('somaticRaw');
+    try {
+      const j = await fetch('/api/research/somatic/status').then(r=>r.json());
+      const s = j.somatic || j || {};
+      const fields = ['temp_norm','vram_norm','somatic_entropy','somatic_arousal','somatic_threat'];
+      sg.innerHTML = fields.map(f => {
+        const v = s[f];
+        const vn = v != null ? Number(v) : null;
+        const pct = vn != null ? Math.max(0, Math.min(1, vn)) * 100 : 0;
+        const col = vn != null ? barColor(vn) : '#444';
+        return `<div class="somatic-cell">
+          <div class="sc-name">${esc(f.replace('somatic_','').toUpperCase())}</div>
+          <div class="sc-val" style="color:${col}">${vn != null ? fmt2(vn) : '—'}</div>
+          <div class="metric-bar-wrap" style="margin-top:4px;"><div class="metric-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+        </div>`;
+      }).join('');
+      const raw = [];
+      if (s.gpu_temp_c   != null) raw.push('GPU ' + s.gpu_temp_c + '°C');
+      if (s.gpu_vram_used_mb != null) raw.push('VRAM ' + s.gpu_vram_used_mb + 'MB');
+      sr.textContent = raw.join('   ');
+    } catch(e) { sg.innerHTML = '<div style="color:#ff3333;font-size:10px;">errore somatic</div>'; }
+  }
+
+  async function loadSession() {
+    const sg = document.getElementById('sessionGrid');
+    try {
+      const [js, jg] = await Promise.all([
+        fetch('/api/status').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/research/graph/status').then(r=>r.json()).catch(()=>({})),
+      ]);
+      const cells = [
+        {label:'SCAMBI', val: js.exchange_count != null ? js.exchange_count : '—'},
+        {label:'SESSIONI', val: js.session_count != null ? js.session_count : '—'},
+        {label:'ULTIMO MSG', val: fmtTs(js.last_user_msg_at)},
+        {label:'EPISODI TOTALI', val: jg.episode_count != null ? jg.episode_count : '—'},
+      ];
+      sg.innerHTML = cells.map(c =>
+        `<div class="session-cell"><div class="s-label">${esc(c.label)}</div><div class="s-val">${esc(String(c.val))}</div></div>`
+      ).join('');
+    } catch(e) { sg.innerHTML = '<div style="color:#ff3333;font-size:10px;">errore sessione</div>'; }
+  }
+
+  // ═══ LOGS ══════════════════════════════════════════════════════════════
+  const logsScroll       = document.getElementById('logsScroll');
+  const filterModule     = document.getElementById('filterModule');
+  const filterSearch     = document.getElementById('filterSearch');
+  const btnPause         = document.getElementById('btnPause');
+  const btnClear         = document.getElementById('btnClear');
+  const btnExport        = document.getElementById('btnExport');
+  const btnHealthRun     = document.getElementById('btnHealthRun');
+  const visibleCount     = document.getElementById('visibleCount');
+  const totalCount       = document.getElementById('totalCount');
+  const streamStatus     = document.getElementById('streamStatus');
+  const liveDot          = document.getElementById('liveDot');
+  const autoScrollStatus = document.getElementById('autoScrollStatus');
+  const sevCounts        = document.getElementById('sevCounts');
+
+  const SEVERITIES = ['DEBUG','INFO','WARNING','ERROR','CRITICAL'];
+  let logsById = new Map();
+  let activeSeverities = new Set(SEVERITIES);
+  let paused = false, autoScroll = true;
+
+  async function refreshModules() {
+    try {
+      const j = await fetch('/api/logs/modules').then(r=>r.json());
+      const cur = filterModule.value;
+      filterModule.innerHTML = '<option value="">— all —</option>' +
+        (j.modules||[]).map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+      if (cur) filterModule.value = cur;
+    } catch(e){}
+  }
+
+  async function loadInitialLogs() {
+    try {
+      const j = await fetch('/api/logs?limit=500').then(r=>r.json());
+      (j.logs||[]).forEach(l=>logsById.set(l.id, l));
+      updateSevCounts(j.sev_counts||{});
+      renderLogs();
+    } catch(e){}
+  }
+
+  function startStream() {
+    const es = new EventSource('/api/logs/stream');
+    es.onmessage = ev => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (m.type === 'connected') { streamStatus.textContent='live'; liveDot.className='live-dot on'; return; }
+        if (m.type === 'append') { logsById.set(m.id, m); }
+        else if (m.type === 'update') {
+          logsById.set(m.id, Object.assign({}, logsById.get(m.id)||{}, m, {_flash:true}));
+        }
+        if (!paused) renderLogs();
+      } catch(e){}
+    };
+    es.onerror = () => {
+      streamStatus.textContent='disconnesso'; liveDot.className='live-dot err';
+      es.close(); setTimeout(startStream, 3000);
+    };
+    refreshModules(); loadInitialLogs();
+  }
+
+  function renderLogs() {
+    const mod  = filterModule.value.trim().toUpperCase();
+    const srch = filterSearch.value.trim().toLowerCase();
+    const sorted = Array.from(logsById.values()).sort((a,b)=>a.id-b.id);
+    const filt = sorted.filter(l => {
+      if (!activeSeverities.has(l.severity)) return false;
+      if (mod  && l.module !== mod) return false;
+      if (srch && !((l.message||'').toLowerCase().includes(srch)||(l.module||'').toLowerCase().includes(srch))) return false;
+      return true;
+    }).slice(-500);
+
+    // FIX scroll-to-top mobile: il rebuild di innerHTML resetta scrollTop a 0,
+    // facendo "rimbalzare" verso l'alto la lista durante il momentum scroll iOS.
+    // Salviamo la posizione prima del rebuild e la ripristiniamo dopo, a meno che
+    // l'utente sia in autoScroll (vicino al fondo, vuole vedere i nuovi log).
+    const prevScrollTop = logsScroll.scrollTop;
+    const wasNearBottom = (prevScrollTop + logsScroll.clientHeight) >= (logsScroll.scrollHeight - 40);
+
+    logsScroll.innerHTML = filt.map(l => {
+      const fl = l._flash ? ' updated' : '';
+      const cnt = (l.count && l.count>1) ? `<span class="log-cnt">x${l.count}</span>` : `<span class="log-cnt hidden"></span>`;
+      return `<div class="log-entry ${esc(l.severity)}${fl}">
+        <span class="log-ts">${(l.last_ts||l.ts||'').slice(11,19)}</span>
+        <span class="log-sev">${esc(l.severity)}</span>
+        <span class="log-mod">[${esc(l.module)}]</span>
+        <span class="log-msg">${esc(l.message)}</span>
+        ${cnt}
+      </div>`;
+    }).join('');
+    setTimeout(()=>logsById.forEach(l=>{ if(l._flash) delete l._flash; }), 700);
+    visibleCount.textContent = filt.length;
+    totalCount.textContent   = logsById.size;
+
+    // Ripristino scroll: se autoScroll/wasNearBottom → fondo;
+    // altrimenti la stessa posizione di prima (i log nuovi appendono
+    // in fondo, quindi prevScrollTop mantiene la stessa zona visibile).
+    if (autoScroll || wasNearBottom) {
+      logsScroll.scrollTop = logsScroll.scrollHeight;
+    } else if (prevScrollTop > 0) {
+      logsScroll.scrollTop = prevScrollTop;
+    }
+  }
+
+  function updateSevCounts(c) {
+    sevCounts.innerHTML = SEVERITIES.map(s=>`<span class="c-${s}">${s}:${c[s]||0}</span>`).join('');
+  }
+
+  document.querySelectorAll('.sev-toggle').forEach(btn => btn.addEventListener('click', () => {
+    const sev = btn.dataset.sev;
+    if (activeSeverities.has(sev)) { activeSeverities.delete(sev); btn.classList.remove('on'); }
+    else { activeSeverities.add(sev); btn.classList.add('on'); }
+    renderLogs();
+  }));
+  filterModule.addEventListener('change', renderLogs);
+  filterSearch.addEventListener('input',  renderLogs);
+  btnPause.addEventListener('click', () => {
+    paused = !paused; btnPause.textContent = paused?'RESUME':'PAUSE';
+    btnPause.classList.toggle('active', paused);
+    if (!paused) renderLogs();
+  });
+  btnClear.addEventListener('click', () => { if(confirm('Cancellare buffer visuale?')){ logsById.clear(); renderLogs(); }});
+  btnExport.addEventListener('click', () => { window.location.href='/api/logs/export'; });
+  btnHealthRun.addEventListener('click', async () => {
+    btnHealthRun.disabled=true; btnHealthRun.textContent='…';
+    try { await fetch('/api/logs/health/run',{method:'POST'}); await loadHealth(); } catch(e){}
+    btnHealthRun.disabled=false; btnHealthRun.textContent='WATCHDOG ▶';
+  });
+  logsScroll.addEventListener('scroll', () => {
+    autoScroll = (logsScroll.scrollTop+logsScroll.clientHeight) >= (logsScroll.scrollHeight-40);
+    autoScrollStatus.textContent = autoScroll?'on':'off';
+  });
+
+  // ═══ CORREZIONI ════════════════════════════════════════════════════════
+  async function loadCorrezioni() {
+    const body  = document.getElementById('corrBody');
+    const badge = document.getElementById('corrCount');
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">Caricamento…</td></tr>';
+    try {
+      const j = await fetch('/api/research/corrections/log?limit=100').then(r=>r.json());
+      const rows = j.corrections || j.log || j || [];
+      if (!Array.isArray(rows) || rows.length===0) {
+        body.innerHTML='<tr><td colspan="6" class="empty-state">Nessuna correzione registrata.</td></tr>';
+        badge.textContent='0 correzioni'; return;
+      }
+      badge.textContent = rows.length + ' correz' + (rows.length!==1?'ioni':'ione');
+      body.innerHTML = rows.map(r => {
+        const m  = (r.method||'none').toLowerCase();
+        const mc = m==='regex'?'method-regex':m==='llm'?'method-llm':'method-none';
+        const facts = Array.isArray(r.extracted_facts) ? r.extracted_facts : [];
+        const fpairs = facts.map(f=>
+          `<span class="fact-pair"><span class="fact-key">${esc(f.key)}</span><span class="fact-arrow">→</span><span class="fact-val">${esc(f.value)}</span></span>`
+        ).join(' ');
+        const kz = r.kuzu_updated ? '<span class="ck-yes">&#10003;</span>' : '<span class="ck-no">—</span>';
+        const wm = r.wm_injected  ? '<span class="ck-yes">&#10003;</span>' : '<span class="ck-no">—</span>';
+        const msg = r.user_msg_preview || r.user_msg || '';
+        return `<tr>
+          <td style="white-space:nowrap;color:#666;font-size:10px;">${esc((r.ts||'').slice(0,19).replace('T',' '))}</td>
+          <td><span class="${mc}">${esc(r.method||'—')}</span></td>
+          <td>${fpairs || '<span style="color:#555">—</span>'}</td>
+          <td style="text-align:center;">${kz}</td>
+          <td style="text-align:center;">${wm}</td>
+          <td style="color:#888;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(msg)}">${esc(msg.slice(0,60))}${msg.length>60?'…':''}</td>
+        </tr>`;
+      }).join('');
+    } catch(e) {
+      body.innerHTML=`<tr><td colspan="6" class="empty-state" style="color:#ff3333;">Errore: ${esc(String(e))}</td></tr>`;
+    }
+  }
+  document.getElementById('btnRefreshCorr').addEventListener('click', loadCorrezioni);
+
+  // ═══ RICERCA ═══════════════════════════════════════════════════════════
+  async function loadRicerca() {
+    await Promise.all([loadGraphFacts(), loadDigitalSleep(), loadSC()]);
+  }
+
+  async function loadGraphFacts() {
+    const totals  = document.getElementById('graphTotals');
+    const body    = document.getElementById('factsBody');
+    const dnaGrid = document.getElementById('dnaGrid');
+    try {
+      const [jf, jg] = await Promise.all([
+        fetch('/api/research/graph/facts').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/research/graph/status').then(r=>r.json()).catch(()=>({})),
+      ]);
+      const tkeys = [
+        {k:'episode_count',label:'EPISODI'},
+        {k:'fact_count',   label:'FACTS'},
+        {k:'concept_count',label:'CONCEPT'},
+        {k:'dna_count',    label:'DNA NODES'},
+      ];
+      totals.innerHTML = tkeys.map(t=>`<div class="gtot">${esc(t.label)}<span>${jg[t.k]!=null?jg[t.k]:'—'}</span></div>`).join('');
+
+      const facts = jf.facts || jf || [];
+      if (!Array.isArray(facts)||facts.length===0) {
+        body.innerHTML='<tr><td colspan="4" class="empty-state">Nessun Fact strutturato.</td></tr>';
+      } else {
+        body.innerHTML = facts.map(f=>`<tr>
+          <td style="color:#8aa;">${esc(f.key||f.name||'—')}</td>
+          <td>${esc(f.value||f.val||'—')}</td>
+          <td style="color:#4dd8e8;">${f.confidence!=null?fmt2(f.confidence):'—'}</td>
+          <td style="color:#666;">${esc(f.source||f.src||'—')}</td>
+        </tr>`).join('');
+      }
+
+      const dnas = jg.dna_nodes || [];
+      if (!dnas.length) {
+        dnaGrid.innerHTML='<div class="empty-state">Nessun DNA node ancora cristallizzato.</div>';
+      } else {
+        dnaGrid.innerHTML = dnas.map(d=>`<div class="dna-card">
+          <div class="dna-concept">${esc(d.concept_source||d.concept_name||'—')}</div>
+          <div class="dna-rule">${esc(d.rule||'—')}</div>
+          <div class="dna-meta">
+            <span>conf ${d.confidence!=null?fmt2(d.confidence):'—'}</span>
+            <span>rein &times;${d.reinforcement_count!=null?d.reinforcement_count:'—'}</span>
+          </div>
+        </div>`).join('');
+      }
+    } catch(e) {
+      totals.innerHTML=`<div style="color:#ff3333;font-size:10px;">errore graph: ${esc(String(e))}</div>`;
+    }
+  }
+
+  async function loadDigitalSleep() {
+    const ss = document.getElementById('sleepStats');
+    try {
+      const j = await fetch('/api/research/digital_sleep/status').then(r=>r.json());
+      const items = [
+        {label:'VERSIONE',   val: j.version||'—'},
+        {label:'ULTIMO RUN', val: fmtTs(j.last_run_at)},
+        {label:'TOT PROCESSATI', val: j.total_episodes_processed!=null?j.total_episodes_processed:'—'},
+        {label:'VERIFIED',   val: j.verified_count!=null?j.verified_count:(j.stats&&j.stats.verified!=null?j.stats.verified:'—')},
+        {label:'FLAGGED',    val: j.flagged_count!=null?j.flagged_count:(j.stats&&j.stats.flagged!=null?j.stats.flagged:'—')},
+        {label:'UNKNOWN',    val: j.unknown_count!=null?j.unknown_count:(j.stats&&j.stats.unknown!=null?j.stats.unknown:'—')},
+      ];
+      ss.innerHTML = items.map(i=>`<div class="sleep-stat"><div class="ss-label">${esc(i.label)}</div><div class="ss-val">${esc(String(i.val))}</div></div>`).join('');
+    } catch(e) {
+      ss.innerHTML=`<div style="color:#ff3333;font-size:10px;">errore digital_sleep</div>`;
+    }
+  }
+
+  async function loadSC() {
+    const bl = document.getElementById('scBlock');
+    try {
+      const j = await fetch('/api/research/continuity/status').then(r=>r.json());
+      const last = j.last_session || j.last || j || {};
+      const dims = last.dimensions || last.scores || {};
+      const sc   = last.sc != null ? last.sc : (last.mean_sc != null ? last.mean_sc : null);
+      const col  = sc!=null ? barColor(sc) : '#4dd8e8';
+      const dimKeys = ['D1','D2','D3','D4','D5'];
+      const dimBars = dimKeys.map(k=>{
+        const v = dims[k]; const vn = v!=null?Number(v):null;
+        const pct = vn!=null?Math.max(0,Math.min(1,vn))*100:0;
+        return `<div class="sc-dim-cell">
+          <div class="sc-dim-label">${esc(k)}</div>
+          <div class="sc-dim-val">${vn!=null?fmt2(vn):'—'}</div>
+          <div class="sc-bar-wrap"><div class="sc-bar-fill" style="width:${pct}%;background:${vn!=null?barColor(vn):'#444'}"></div></div>
+        </div>`;
+      }).join('');
+      bl.innerHTML = `
+        <div class="sc-score-big" style="color:${col}">${sc!=null?Number(sc).toFixed(3):'—'}</div>
+        <div class="sc-meta" style="margin-bottom:8px;">SC score — ${esc(last.session_type||'—')} — ${esc(fmtTs(last.ts||last.created_at))}</div>
+        <div class="sc-dims">${dimBars}</div>`;
+    } catch(e) {
+      bl.innerHTML=`<div class="empty-state" style="color:#ff3333;">errore continuity: ${esc(String(e))}</div>`;
+    }
+  }
+
+  // ═══ GRAPH VIZ ═══════════════════════════════════════════════════════════
+  const NODE_COLORS = { DNA:'#00e5ff', Fact:'#ffd700', Trait:'#cc88ff', Concept:'#4488aa' };
+  const EP_STATUS_COLORS = { verified:'#44cc88', flagged:'#ff5555', unknown:'#3a6a8a' };
+  const LINK_COLORS = {
+    CRYSTALLIZED_INTO:'#00e5ff', CONTRADICTS:'#ff3333', REINFORCES:'#00dd66',
+    ABOUT:'#4dd8e8', FACT_REL:'#ffd700', CONCEPT_REL:'#2a4a5a',
+    SHAPED_BY:'#cc88ff', MENTIONS_FACT:'#ff8844'
+  };
+  const LINK_PARTICLES = { CRYSTALLIZED_INTO:4, CONTRADICTS:2, REINFORCES:2, SHAPED_BY:1 };
+
+  let _fgInst = null, _rawGraph = null, _mouseX = 0, _mouseY = 0, _graphRefreshTimer = null;
+  let _filterTypes  = new Set(['DNA','Fact','Trait','Concept']);
+  let _filterStatus = new Set(['verified','flagged','unknown']);
+
+  document.addEventListener('mousemove', e => {
+    _mouseX = e.clientX; _mouseY = e.clientY;
+    const tip = document.getElementById('graphTooltip');
+    if (tip && tip.style.display === 'block') {
+      tip.style.left = (e.clientX + 16) + 'px';
+      tip.style.top  = (e.clientY - 32) + 'px';
+    }
+  });
+
+  document.getElementById('graphFilters').addEventListener('click', e => {
+    const btn = e.target.closest('[data-ftype],[data-epstatus]');
+    if (!btn) return;
+    btn.classList.toggle('active');
+    const ft = btn.dataset.ftype, ep = btn.dataset.epstatus;
+    if (ft) { btn.classList.contains('active') ? _filterTypes.add(ft) : _filterTypes.delete(ft); }
+    if (ep) { btn.classList.contains('active') ? _filterStatus.add(ep) : _filterStatus.delete(ep); }
+    _applyFilter();
+  });
+
+  document.getElementById('graphDetailClose').addEventListener('click', () => {
+    document.getElementById('graphDetail').classList.remove('open');
+  });
+
+  function _nodeColor(n) {
+    if (n.type === 'Episode') return EP_STATUS_COLORS[n.status || 'unknown'] || EP_STATUS_COLORS.unknown;
+    return NODE_COLORS[n.type] || '#4488aa';
+  }
+  function _nodeVal(n) {
+    if (n.type === 'DNA')     return Math.min(20, (n.reinforcement_count || 1) * 2 + 4);
+    if (n.type === 'Fact')    return Math.min(12, (n.confidence || 0.5) * 8 + 2);
+    if (n.type === 'Trait')   return 6;
+    if (n.type === 'Concept') return Math.min(10, (n.episode_count || 1) * 0.4 + 1.5);
+    if (n.type === 'Episode') return Math.min(14, ((n.importance || 5) / 10) * 8 + 2);
+    return 3;
+  }
+  function _linkCol(l) {
+    const c = LINK_COLORS[l.type]; return c ? c + 'bb' : 'rgba(60,80,100,0.2)';
+  }
+  function _linkW(l) {
+    if (l.type === 'CRYSTALLIZED_INTO') return 1.8;
+    if (l.type === 'CONTRADICTS')       return 1.5;
+    if (l.type === 'REINFORCES')        return 1.5;
+    if (l.type === 'SHAPED_BY')         return 1.2;
+    if (l.type === 'FACT_REL')          return 1.2;
+    if (l.type === 'MENTIONS_FACT')     return 1.0;
+    if (l.type === 'ABOUT')             return 0.8;
+    return 0.4;
+  }
+
+  function _filteredGraph() {
+    if (!_rawGraph) return { nodes:[], links:[] };
+    const nodes = (_rawGraph.nodes || []).filter(n => {
+      if (!_filterTypes.has(n.type)) return false;
+      if (n.type === 'Episode' && !_filterStatus.has(n.status || 'unknown')) return false;
+      return true;
+    });
+    const ids = new Set(nodes.map(n => n.id));
+    const links = (_rawGraph.links || []).filter(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      return ids.has(s) && ids.has(t);
+    });
+    return { nodes, links };
+  }
+
+  function _applyFilter() {
+    if (!_fgInst || !_rawGraph) return;
+    _fgInst.graphData(_filteredGraph());
+    _updateCounts();
+  }
+
+  function _updateCounts() {
+    const d = _fgInst ? _fgInst.graphData() : { nodes:[], links:[] };
+    const ns = d.nodes || [], ls = d.links || [];
+    const cnt = t => ns.filter(n => n.type === t).length;
+    document.getElementById('graphCounts').innerHTML =
+      ['DNA','Fact','Trait','Concept','Episode'].map(t => {
+        const col = t === 'Episode' ? '#44cc88' : (NODE_COLORS[t] || '#4dd8e8');
+        return `<div class="gc-item"><span class="gc-val" style="color:${col}">${cnt(t)}</span><span class="gc-lbl">${t.toUpperCase()}</span></div>`;
+      }).join('') +
+      `<div class="gc-item"><span class="gc-val">${ls.length}</span><span class="gc-lbl">LINKS</span></div>`;
+  }
+
+  function _showDetail(node) {
+    const col = _nodeColor(node);
+    document.getElementById('gdType').innerHTML = `<span style="color:${col};letter-spacing:2px">[${esc(node.type)}]</span>`;
+    document.getElementById('gdLabel').textContent = node.label || node.id;
+    const row = (k, v) => (v != null && v !== '')
+      ? `<div class="gd-row"><span class="gd-key">${esc(k)}</span><span class="gd-val">${esc(String(v))}</span></div>` : '';
+    let body = '';
+    if (node.type === 'DNA') {
+      body += row('regola', node.rule);
+      body += row('concept', node.concept);
+      body += row('rinforzi', node.reinforcement_count);
+      body += row('confidence', node.confidence != null ? fmt2(node.confidence) : null);
+    } else if (node.type === 'Fact') {
+      body += row('valore', node.value);
+      body += row('confidence', node.confidence != null ? fmt2(node.confidence) : null);
+      body += row('sorgente', node.source);
+      body += row('aggiornato', node.updated_at ? fmtTs(node.updated_at) : null);
+    } else if (node.type === 'Trait') {
+      body += row('score', node.score != null ? fmt2(node.score) : null);
+      body += row('sorgente', node.source);
+    } else if (node.type === 'Concept') {
+      body += row('episodi collegati', node.episode_count);
+      body += row('tipo', node.concept_type);
+    } else if (node.type === 'Episode') {
+      const stCol = EP_STATUS_COLORS[node.status || 'unknown'];
+      body += `<div class="gd-row"><span class="gd-key">status</span><span class="gd-val" style="color:${stCol}">${esc(node.status || 'unknown')}</span></div>`;
+      body += row('importance', node.importance);
+      body += row('significance', node.significance != null ? fmt2(node.significance) : null);
+      body += row('valence', node.valence != null ? fmt2(node.valence) : null);
+      body += row('arousal', node.arousal != null ? fmt2(node.arousal) : null);
+      body += row('emozione', node.emotion);
+      body += row('data', node.ts ? fmtTs(node.ts) : null);
+      if (node.summary) {
+        body += `<div class="gd-section">SUMMARY</div><div class="gd-summary">${esc(node.summary)}</div>`;
+      }
+    }
+    // connessioni
+    const d = _fgInst ? _fgInst.graphData() : { nodes:[], links:[] };
+    const myLinks = (d.links || []).filter(l => {
+      const s = typeof l.source === 'object' ? l.source.id : l.source;
+      const t = typeof l.target === 'object' ? l.target.id : l.target;
+      return s === node.id || t === node.id;
+    });
+    if (myLinks.length > 0) {
+      const nodeMap = {};
+      (d.nodes || []).forEach(n => nodeMap[n.id] = n);
+      body += `<div class="gd-section">CONNESSIONI (${myLinks.length})</div>`;
+      body += myLinks.slice(0, 12).map(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        const otherId = s === node.id ? t : s;
+        const oNode = nodeMap[otherId] || {};
+        const arrow = s === node.id ? '→' : '←';
+        const lc = LINK_COLORS[l.type] || '#334';
+        return `<div class="gd-conn" style="border-left-color:${lc}44">` +
+          `<span style="color:${lc};font-size:8px">${esc(l.type || '?')}</span> ${arrow} ` +
+          `<span style="color:#7a9">${esc(oNode.label || otherId || '?')}</span></div>`;
+      }).join('');
+      if (myLinks.length > 12) body += `<div style="font-size:9px;color:#334;margin-top:4px">… e altri ${myLinks.length - 12}</div>`;
+    }
+    document.getElementById('gdBody').innerHTML = body;
+    document.getElementById('graphDetail').classList.add('open');
+  }
+
+  function loadFgLib() {
+    return new Promise((res, rej) => {
+      if (window.ForceGraph3D) { res(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/3d-force-graph/dist/3d-force-graph.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function loadGraphViz() {
+    const mount = document.getElementById('graphMount');
+    const info  = document.getElementById('graphInfo');
+    const tip   = document.getElementById('graphTooltip');
+    info.textContent = 'caricamento libreria...';
+    try { await loadFgLib(); } catch(e) { info.textContent = 'CDN error: ' + String(e); return; }
+    info.textContent = 'caricamento dati graph...';
+    const epCount = _filterTypes.has('Episode') ? 80 : 0;
+    try {
+      const r = await fetch('/api/research/graph/viz?concepts=120&episodes=' + epCount);
+      _rawGraph = await r.json();
+      if (_rawGraph.errore) throw new Error(_rawGraph.errore);
+    } catch(e) { info.textContent = 'errore: ' + String(e); return; }
+
+    mount.innerHTML = '';
+    document.getElementById('graphDetail').classList.remove('open');
+    if (_fgInst) { try { _fgInst._destructor && _fgInst._destructor(); } catch(_){} _fgInst = null; }
+
+    const w = mount.clientWidth || 700, h = mount.clientHeight || 500;
+
+    const fg = ForceGraph3D()(mount)
+      .width(w).height(h)
+      .backgroundColor('#06060a')
+      .nodeId('id')
+      .nodeLabel(() => '')
+      .nodeColor(_nodeColor)
+      .nodeOpacity(0.88)
+      .nodeVal(_nodeVal)
+      .linkColor(_linkCol)
+      .linkWidth(_linkW)
+      .linkDirectionalParticles(l => LINK_PARTICLES[l.type] || 0)
+      .linkDirectionalParticleColor(l => LINK_COLORS[l.type] || '#4dd8e8')
+      .linkDirectionalParticleWidth(l => l.type === 'CRYSTALLIZED_INTO' ? 2.2 : 1.3)
+      .linkDirectionalParticleSpeed(l => l.type === 'CRYSTALLIZED_INTO' ? 0.007 : 0.004)
+      .onNodeHover(node => {
+        if (!node) { tip.style.display = 'none'; return; }
+        const col = _nodeColor(node);
+        let html = `<b style="color:${col}">[${esc(node.type)}]</b> ${esc(node.label || node.id)}`;
+        if (node.rule)               html += `<br><i style="color:#8ab">${esc(String(node.rule).substring(0, 80))}</i>`;
+        if (node.confidence != null) html += `<br>confidence: ${fmt2(node.confidence)}`;
+        if (node.episode_count)      html += `<br>episodi: ${node.episode_count}`;
+        if (node.importance)         html += `<br>importance: ${node.importance}`;
+        if (node.status) {
+          const sc = EP_STATUS_COLORS[node.status] || '#888';
+          html += `<br>status: <span style="color:${sc}">${esc(node.status)}</span>`;
+        }
+        if (node.valence != null) html += `<br>valence ${fmt2(node.valence)} · arousal ${fmt2(node.arousal)}`;
+        tip.innerHTML = html;
+        tip.style.display = 'block';
+        tip.style.left = (_mouseX + 16) + 'px';
+        tip.style.top  = (_mouseY - 32) + 'px';
+      })
+      .onNodeClick(node => { _showDetail(node); })
+      .graphData(_filteredGraph());
+
+    _fgInst = fg;
+    _updateCounts();
+    const tot = (_rawGraph.nodes || []).length;
+    const totL = (_rawGraph.links || []).length;
+    info.textContent = `${tot} nodi · ${totL} link · sync ${new Date().toLocaleTimeString('it-IT')}`;
+
+    new ResizeObserver(() => {
+      if (_fgInst) _fgInst.width(mount.clientWidth).height(mount.clientHeight);
+    }).observe(mount);
+
+    if (_graphRefreshTimer) clearInterval(_graphRefreshTimer);
+    _graphRefreshTimer = setInterval(() => {
+      if (document.getElementById('tab-graph').classList.contains('active')) loadGraphViz();
+    }, 45000);
+  }
+
+  document.getElementById('btnRefreshGraph').addEventListener('click', () => { graphLoaded = true; loadGraphViz(); });
+
+  // ═══ INIT ═══════════════════════════════════════════════════════════════
+  loadOverview();
+  setInterval(loadOverview, 15000);
+</script>
+<script>(function(){function _eh(){var b=document.body;var h=Math.max(b.getBoundingClientRect().bottom,b.offsetHeight,b.scrollHeight);try{parent.postMessage({_eden_h:h,_eden_p:location.pathname},'*');}catch(e){}} _eh();window.addEventListener('load',_eh);setInterval(_eh,600);if('MutationObserver' in window){new MutationObserver(_eh).observe(document.body,{childList:true,subtree:true,characterData:true});}})()</script>
+</body>
+</html>

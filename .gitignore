@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+finetuning_env/
+/data/
+/avatar/
+/plugins/
+/liveportrait/
+/chroma_db/
+*.gguf
+*.safetensors
+.env
+.env.*
+*.token
