@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eden">
+<meta name="theme-color" content="#0c0b10">
+<title>Eden</title>
+<script>try { const t = localStorage.getItem('eden-tema'); if (t && t !== 'sistema') document.documentElement.dataset.tema = t; } catch {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  /* Identità: il nome in Fraunces corsivo, i messaggi in Geist; Eden in una nuvola piena con bordo sfumato, Stefano in vetro.
+     Tema: sistema (predefinito) · chiaro · scuro, scelto dal pulsante in alto e ricordato dal browser. */
+  :root {
+    --fondo: #f4f2ed; --vetro: rgba(255,255,255,.66); --testo: #1d1b18; --tenue: #75706a; --linea: rgba(29,27,24,.10);
+    --accento: #6a4ce0; --accento2: #d9468f; --mio: rgba(106,76,224,.10); --mio-bordo: rgba(106,76,224,.22);
+    --ok: #2d7a48; --male: #c2410c; --aurora: .20;
+    --serif: "Fraunces", "Iowan Old Style", Georgia, serif; --sans: "Geist", system-ui, -apple-system, sans-serif;
+    --nuvola-eden: #fbfaf7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="chiaro"]) {
+      --fondo: #0b0a0f; --vetro: rgba(22,20,30,.62); --testo: #ebe8f2; --tenue: #8e89a1; --linea: rgba(255,255,255,.08);
+      --accento: #a58bff; --accento2: #f472b6; --mio: rgba(165,139,255,.13); --mio-bordo: rgba(165,139,255,.24);
+      --ok: #6ee7a0; --male: #fb923c; --aurora: .28; --nuvola-eden: #17151f;
+    }
+  }
+  :root[data-tema="scuro"] {
+    --fondo: #0b0a0f; --vetro: rgba(22,20,30,.62); --testo: #ebe8f2; --tenue: #8e89a1; --linea: rgba(255,255,255,.08);
+    --accento: #a58bff; --accento2: #f472b6; --mio: rgba(165,139,255,.13); --mio-bordo: rgba(165,139,255,.24);
+    --ok: #6ee7a0; --male: #fb923c; --aurora: .28; --nuvola-eden: #17151f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--fondo); color: var(--testo); font: 15px/1.55 var(--sans);
+         display: flex; flex-direction: column; height: 100dvh; overflow: hidden; transition: background .4s; }
+  /* aurora: due luci lente dietro a tutto */
+  body::before, body::after { content: ''; position: fixed; z-index: -1; width: 70vmax; height: 70vmax; border-radius: 50%;
+    filter: blur(80px); opacity: var(--aurora); pointer-events: none; animation: deriva 26s ease-in-out infinite alternate; }
+  body::before { background: var(--accento); top: -38vmax; left: -22vmax; }
+  body::after { background: var(--accento2); bottom: -44vmax; right: -30vmax; animation-duration: 32s; animation-direction: alternate-reverse; }
+  @keyframes deriva { to { transform: translate(8vmax, 6vmax) scale(1.12); } }
+
+  header { display: flex; align-items: center; gap: 12px; padding: calc(env(safe-area-inset-top) + 10px) 18px 10px;
+           background: var(--vetro); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+           border-bottom: 1px solid var(--linea); position: relative; z-index: 2; }
+  .sigillo { width: 38px; height: 38px; border-radius: 50%; position: relative; flex: none; animation: respira 5s ease-in-out infinite; }
+  .sigillo::before { content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--accento), var(--accento2), #f5b35c, var(--accento));
+    animation: gira 9s linear infinite; filter: blur(.4px); }
+  .sigillo::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--fondo);
+    box-shadow: inset 0 0 10px color-mix(in oklab, var(--accento) 55%, transparent); }
+  body.pensa .sigillo { animation-duration: 1.6s; }
+  body.pensa .sigillo::before { animation-duration: 2.2s; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  @keyframes respira { 50% { transform: scale(1.06); filter: drop-shadow(0 0 10px color-mix(in oklab, var(--accento) 60%, transparent)); } }
+  .nome { flex: 1; min-width: 0; }
+  .nome h1 { margin: 0; font: italic 400 24px/1.05 var(--serif); letter-spacing: -.01em; }
+  #stato { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tenue); min-height: 17px; }
+  #stato::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+                   box-shadow: 0 0 8px var(--ok); flex: none; }
+  #stato.attesa::before { background: var(--accento); box-shadow: 0 0 8px var(--accento); animation: lampeggia 1.2s infinite; }
+  #stato.guasto::before { background: var(--male); box-shadow: none; }
+  #tema { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--linea); background: transparent;
+          color: var(--testo); display: grid; place-items: center; cursor: pointer; padding: 0; }
+  #tema svg { width: 18px; height: 18px; }
+
+  #chat { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+  #giu { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 86px); z-index: 3; width: 40px; height: 40px;
+         border-radius: 50%; border: 1px solid var(--linea); background: var(--vetro); color: var(--testo); cursor: pointer;
+         display: grid; place-items: center; padding: 0; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+         box-shadow: 0 6px 20px -8px rgba(0,0,0,.4); }
+  #giu[hidden] { display: none; }
+  #giu svg { width: 18px; height: 18px; }
+  #flusso { max-width: 720px; margin: 0 auto; padding: 18px 18px 28px; display: flex; flex-direction: column; gap: 14px; }
+  .giorno { align-self: center; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--tenue);
+            padding: 4px 12px; border: 1px solid var(--linea); border-radius: 99px; background: var(--vetro); margin: 8px 0 2px; }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; animation: entra .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes entra { from { opacity: 0; transform: translateY(6px); } }
+  .user { align-self: flex-end; max-width: 82%; padding: 10px 15px; font-size: 16px; letter-spacing: -.005em; border-radius: 20px 20px 6px 20px;
+          background: var(--mio); border: 1px solid var(--mio-bordo); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  /* la nuvola di Eden: fondo pieno e bordo sfumato viola → rosa, punta in basso a sinistra (la tua è in basso a destra) */
+  .assistant { align-self: flex-start; max-width: 88%; padding: 10px 15px; border-radius: 20px 20px 20px 6px;
+               font: 16px/1.6 var(--sans); letter-spacing: -.005em; border: 1px solid transparent;
+               background: linear-gradient(var(--nuvola-eden), var(--nuvola-eden)) padding-box,
+                           linear-gradient(135deg, color-mix(in oklab, var(--accento) 60%, transparent),
+                                                   color-mix(in oklab, var(--accento2) 45%, transparent)) border-box;
+               box-shadow: 0 6px 24px -12px color-mix(in oklab, var(--accento) 45%, transparent); }
+  .scrive .corpo::after { content: ''; display: inline-block; width: 8px; height: 8px; margin-left: 4px; border-radius: 50%;
+                          background: var(--accento); animation: lampeggia 1s infinite; vertical-align: middle; }
+  .piede { display: flex; align-items: center; gap: 6px; margin-top: 4px; font: 11.5px var(--sans); color: var(--tenue); }
+  .user .piede { justify-content: flex-end; }
+  .voti { display: inline-flex; gap: 2px; margin-left: 4px; }
+  .voti button { width: 30px; height: 26px; border: 0; border-radius: 8px; background: none; color: var(--tenue);
+                 display: grid; place-items: center; cursor: pointer; opacity: .6; padding: 0; transition: .2s; }
+  .voti button svg { width: 15px; height: 15px; }
+  .voti button:hover { opacity: 1; background: var(--linea); }
+  .voti button.attivo { opacity: 1; color: var(--accento); background: var(--mio); }
+  .nota-voto { display: block; width: 100%; margin-top: 8px; font: 14px var(--sans); padding: 8px 10px; border-radius: 12px;
+               border: 1px solid var(--mio-bordo); background: var(--vetro); color: var(--testo); resize: vertical; }
+  .nota-box[hidden] { display: none; }
+  .nota-riga { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 6px;
+               font: 12px var(--sans); color: var(--tenue); }
+  .salva { font: 500 13px var(--sans); padding: 6px 14px; border: 0; border-radius: 99px; color: #fff; cursor: pointer;
+           background: linear-gradient(135deg, var(--accento), var(--accento2)); }
+  .salva:disabled { opacity: .35; cursor: default; }
+  /* fonti citate: ✓ verificata · (senza segno) debole · ⚠ non regge */
+  .fonte { display: inline-flex; align-items: center; gap: 3px; font: 500 11px/1 var(--sans); padding: 4px 7px; margin: 0 2px;
+           border-radius: 99px; border: 1px solid var(--linea); color: var(--tenue); cursor: pointer; white-space: nowrap;
+           vertical-align: 2px; background: var(--vetro); text-decoration: none; }
+  .fonte.ok { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 45%, transparent); }
+  .fonte.falsa { color: var(--male); border-color: color-mix(in oklab, var(--male) 45%, transparent); }
+  .ricordo { display: block; margin-top: 10px; padding: 10px 12px; border-radius: 12px; font: 13.5px/1.5 var(--sans);
+             color: var(--tenue); background: var(--vetro); border: 1px solid var(--linea); }
+  .nota { align-self: center; color: var(--male); font-size: 13px; }
+  /* Eden sta pensando */
+  .pensiero { align-self: flex-start; display: flex; gap: 10px; align-items: center; padding: 2px 0 2px 6px; font-size: 14px; }
+  .simbolo { font-variant-emoji: text; font-family: var(--sans); display: inline-block; width: 1.1em; text-align: center; font-size: 18px; color: var(--accento); animation: respira 1.6s infinite; }
+  .etichetta { font-weight: 500; background: linear-gradient(90deg, var(--tenue) 20%, var(--accento) 50%, var(--tenue) 80%);
+               background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+               animation: scorri 2.2s linear infinite; }
+  .secondi { color: var(--tenue); font-size: 12px; font-variant-numeric: tabular-nums; }
+  @keyframes scorri { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @keyframes lampeggia { 50% { opacity: .25; } }
+
+  form { padding: 10px 14px calc(env(safe-area-inset-bottom) + 10px); background: var(--vetro);
+         backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border-top: 1px solid var(--linea); }
+  .campo { max-width: 720px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 16px;
+           border-radius: 26px; border: 1px solid var(--linea); background: color-mix(in oklab, var(--fondo) 70%, transparent);
+           transition: border-color .2s, box-shadow .2s; }
+  .campo:focus-within { border-color: var(--mio-bordo); box-shadow: 0 0 0 4px var(--mio); }
+  #testo { flex: 1; resize: none; border: 0; outline: 0; background: none; color: var(--testo); font: 16px/1.45 var(--sans);
+           padding: 8px 0; max-height: 36vh; }
+  #testo::placeholder { color: var(--tenue); }
+  #invia { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; cursor: pointer; color: #fff; display: grid; place-items: center;
+           background: linear-gradient(135deg, var(--accento), var(--accento2)); transition: transform .15s, opacity .2s; padding: 0; }
+  #invia svg { width: 18px; height: 18px; }
+  #invia:active { transform: scale(.92); }
+  #invia:disabled { opacity: .35; cursor: default; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="sigillo" aria-hidden="true"></div>
+  <div class="nome"><h1>Eden</h1><span id="stato">…</span></div>
+  <button id="tema" type="button"></button>
+</header>
+<main id="chat"><div id="flusso"></div></main>
+<button id="giu" type="button" aria-label="Vai in fondo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
+<form id="modulo">
+  <div class="campo">
+    <textarea id="testo" rows="1" placeholder="Scrivi a Eden…" enterkeyhint="enter"></textarea>
+    <button id="invia" type="submit" aria-label="Invia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+  </div>
+</form>
+<script>
+const chat = document.getElementById('chat'), flusso = document.getElementById('flusso'), testo = document.getElementById('testo'),
+      invia = document.getElementById('invia'), statoEl = document.getElementById('stato'), radice = document.documentElement,
+      bottoneTema = document.getElementById('tema');
+const STATI = { spenta: 'spenta', si_sveglia: 'si sta svegliando, rilegge la vostra storia…', pronta: 'qui con te',
+                rilegge: 'sta rileggendo la vostra storia…', errore: 'errore' };
+
+/* ---------- tema: sistema · chiaro · scuro ---------- */
+const ICONE = {
+  sistema: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+  chiaro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  scuro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>' };
+const NOMI_TEMA = { sistema: 'come il sistema', chiaro: 'chiaro', scuro: 'scuro' };
+function applicaTema(t) {
+  if (t === 'sistema') delete radice.dataset.tema; else radice.dataset.tema = t;
+  try { localStorage.setItem('eden-tema', t); } catch {}
+  bottoneTema.innerHTML = ICONE[t]; bottoneTema.dataset.tema = t;
+  bottoneTema.setAttribute('aria-label', 'Tema: ' + NOMI_TEMA[t]); bottoneTema.title = 'Tema: ' + NOMI_TEMA[t];
+  requestAnimationFrame(() => document.querySelector('meta[name=theme-color]')
+    .setAttribute('content', getComputedStyle(radice).getPropertyValue('--fondo').trim()));
+}
+bottoneTema.onclick = () => { const o = ['sistema', 'chiaro', 'scuro']; applicaTema(o[(o.indexOf(bottoneTema.dataset.tema) + 1) % 3]); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applicaTema(bottoneTema.dataset.tema));
+applicaTema(radice.dataset.tema || 'sistema');
+
+/* ---------- scorrimento: segue la conversazione solo se sei già in fondo ---------- */
+// Se scorri in su mentre Eden scrive, la pagina smette di seguirla (e compare ↓); torna a seguirla quando scendi in fondo.
+let inFondo = true, dito = false, mio = false;
+const bottoneGiu = document.getElementById('giu');
+const distanza = () => chat.scrollHeight - chat.scrollTop - chat.clientHeight;
+const segui = v => { inFondo = v; bottoneGiu.hidden = v; };
+chat.addEventListener('scroll', () => { if (mio) { mio = false; return; } segui(distanza() < 60); }, { passive: true });
+chat.addEventListener('wheel', e => { if (e.deltaY < 0) segui(false); }, { passive: true });
+chat.addEventListener('touchstart', () => { dito = true; }, { passive: true });
+chat.addEventListener('touchend', () => { dito = false; }, { passive: true });
+function scendi(forza) {
+  if (forza) segui(true);
+  if (!inFondo || dito || distanza() < 1) return;  // mai spostare la pagina mentre il dito è sullo schermo
+  mio = true; chat.scrollTop = chat.scrollHeight;
+}
+bottoneGiu.onclick = () => { chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' }); segui(true); };
+
+/* ---------- giorni e ore ---------- */
+function ora(ts) { return ts ? new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : ''; }
+let ultimoGiorno = null;
+function separatore(ts) {
+  const d = new Date(ts), k = d.toDateString();
+  if (k === ultimoGiorno) return;
+  ultimoGiorno = k;
+  const s = document.createElement('div'); s.className = 'giorno';
+  s.textContent = k === new Date().toDateString() ? 'Oggi' : k === new Date(Date.now() - 864e5).toDateString() ? 'Ieri'
+    : d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  flusso.appendChild(s);
+}
+
+/* ---------- fonti [[#n]] ---------- */
+const UNO = String.raw`\[\[\s*[#@]?\d+(?:\s*[,;]\s*[#@]?\d+)*\s*\]\]`;
+const MARCATORE = new RegExp(`${UNO}(?:\\s*${UNO})*`, 'g');  // uguale a quello di nucleo/citazioni.py
+function fonteWeb(numeri, info) {  // fonte web [[@n]]: mostra il sito e apre la pagina
+  const f = document.createElement('a');
+  f.className = 'fonte ' + (info?.stato ?? '');
+  let sito = '@' + numeri.match(/\d+/)[0];
+  if (info?.url) { try { sito = new URL(info.url).hostname.replace(/^www\./, ''); } catch {} f.href = info.url; f.target = '_blank'; f.rel = 'noopener noreferrer'; }
+  f.textContent = (info?.stato === 'ok' ? '✓ ' : info?.stato === 'falsa' ? '⚠ ' : '') + sito;
+  f.title = info?.motivo || info?.titolo || 'fonte web';
+  return f;
+}
+function fonte(numeri, info) {
+  if (numeri.includes('@')) return fonteWeb(numeri, info);
+  const f = document.createElement('span'), primo = numeri.match(/\d+/)[0];
+  f.className = 'fonte ' + (info?.stato ?? '');
+  const giorno = info?.quando ? new Date(info.quando).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '#' + primo;
+  f.textContent = (info?.stato === 'ok' ? '✓ ' : info?.stato === 'falsa' ? '⚠ ' : '') + giorno;
+  f.title = info?.motivo || 'tocca per rileggere il ricordo';
+  f.onclick = () => apriRicordo(f, info?.scambio ?? primo);
+  return f;
+}
+function disegna(corpo, t, cit = []) {  // il testo con le fonti trasformate in etichette
+  corpo.replaceChildren();
+  const aperto = t.lastIndexOf('[[');
+  if (aperto > t.lastIndexOf(']]')) t = t.slice(0, aperto);  // un marcatore ancora a metà non si mostra
+  let dopo = 0, k = 0;
+  for (const m of t.matchAll(MARCATORE)) {
+    corpo.append(t.slice(dopo, m.index), fonte(m[0], cit?.[k++]));
+    dopo = m.index + m[0].length;
+  }
+  corpo.append(t.slice(dopo));
+}
+async function apriRicordo(etichetta, id) {
+  const bolla = etichetta.closest('.msg'), aperto = bolla.querySelector('.ricordo');
+  if (aperto) { aperto.remove(); return; }
+  const r = await fetch('/api/ricordo/' + id);
+  const box = document.createElement('span'); box.className = 'ricordo';
+  if (r.ok) {
+    const j = await r.json();
+    box.textContent = new Date(j.ts).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' }) +
+      '\nStefano: ' + (j.u ?? '') + (j.a ? '\nEden: ' + j.a : '');
+  } else box.textContent = 'Non trovo questo ricordo.';
+  bolla.appendChild(box);
+}
+
+/* ---------- voti: 👍 come la voglio · 👎 da non rifare, con nota ---------- */
+const POLLICE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 11v9H4v-9zM7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.2a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.5 20H7"/></svg>';
+async function mandaVoto(id, voto, nota) {
+  const corpo = { id, voto }; if (nota !== undefined) corpo.nota = nota;
+  try { return (await fetch('/api/voto', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                           body: JSON.stringify(corpo) })).ok; } catch { return false; }
+}
+function votazione(bolla, piede, id, voto, nota) {
+  const box = document.createElement('span'); box.className = 'voti';
+  // nota: si salva con "Salva" (o uscendo dal campo); resta visibile e modificabile quando riapri la pagina
+  const nbox = document.createElement('div'); nbox.className = 'nota-box';
+  const campo = document.createElement('textarea'); campo.className = 'nota-voto'; campo.rows = 2;
+  campo.placeholder = 'Come avrebbe dovuto rispondere? (facoltativo)'; campo.value = nota ?? '';
+  const riga = document.createElement('div'); riga.className = 'nota-riga';
+  const esito = document.createElement('span'); esito.textContent = nota ? 'salvata ✓' : '';
+  const salva = document.createElement('button'); salva.type = 'button'; salva.className = 'salva'; salva.textContent = 'Salva';
+  salva.disabled = true; riga.append(esito, salva); nbox.append(campo, riga);
+  let salvata = nota ?? '';
+  const salvaNota = async () => {
+    if (campo.value === salvata) return;
+    salva.disabled = true; esito.textContent = 'salvo…';
+    if (await mandaVoto(id, voto, campo.value)) { salvata = campo.value; esito.textContent = campo.value ? 'salvata ✓' : 'nota tolta'; }
+    else { salva.disabled = false; esito.textContent = 'non salvata: riprova'; }
+  };
+  campo.oninput = () => { salva.disabled = campo.value === salvata; esito.textContent = campo.value === salvata ? 'salvata ✓' : 'da salvare'; };
+  campo.onblur = salvaNota; salva.onclick = salvaNota;
+  salva.onpointerdown = e => e.preventDefault();  // il clic su Salva non fa prima uscire dal campo (niente doppio invio)
+  const mostra = () => { nbox.hidden = voto !== 'giu' && !campo.value; };
+  const bottoni = {};
+  const aggiorna = () => Object.entries(bottoni).forEach(([v, b]) => b.classList.toggle('attivo', voto === v));
+  for (const v of ['su', 'giu']) {
+    const b = document.createElement('button'); b.type = 'button'; b.innerHTML = POLLICE;
+    b.setAttribute('aria-label', v === 'su' ? 'Mi piace' : 'Non mi piace');
+    if (v === 'giu') b.firstChild.style.transform = 'rotate(180deg)';
+    b.onclick = async () => {
+      const nuovo = voto === v ? null : v;
+      if (await mandaVoto(id, nuovo)) { voto = nuovo; aggiorna(); mostra(); if (voto === 'giu') campo.focus(); }
+    };
+    bottoni[v] = b; box.appendChild(b);
+  }
+  aggiorna(); mostra(); piede.appendChild(box); bolla.appendChild(nbox);
+}
+
+/* ---------- messaggi ---------- */
+function piede(bolla, ts, m) {
+  const p = document.createElement('div'); p.className = 'piede';
+  const o = document.createElement('span'); o.textContent = ora(ts); p.appendChild(o);
+  bolla.appendChild(p);
+  if (m?.id && bolla.classList.contains('assistant')) votazione(bolla, p, m.id, m.voto, m.nota);
+}
+function aggiungi(classe, t, ts, cit, m) {
+  separatore(ts || new Date());
+  const d = document.createElement('div'); d.className = 'msg ' + classe;
+  const c = document.createElement('span'); c.className = 'corpo'; d.appendChild(c); disegna(c, t, cit);
+  if (ts) piede(d, ts, m);
+  flusso.appendChild(d); scendi(); return d;
+}
+function nota(t) { const d = document.createElement('div'); d.className = 'nota'; d.textContent = t; flusso.appendChild(d); scendi(); }
+
+// U+FE0E = mostra come testo: senza, iPhone disegna ✳ come emoji (quadrato verde)
+const FORME = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'].map(f => f + '︎');
+function indicatore(t) {  // "ci penso": simbolo che cambia forma, bagliore, secondi che passano
+  const d = document.createElement('div'); d.className = 'pensiero';
+  d.innerHTML = '<span class="simbolo"></span><span class="etichetta"></span><span class="secondi"></span>';
+  const [simbolo, etichetta, secondi] = d.children, t0 = Date.now();
+  let i = 0;
+  etichetta.textContent = t;
+  const giro = setInterval(() => {
+    simbolo.textContent = FORME[i++ % FORME.length];
+    const s = Math.floor((Date.now() - t0) / 1000);
+    secondi.textContent = s ? s + ' s' : '';
+  }, 120);
+  flusso.appendChild(d); scendi();
+  return { testo: x => { etichetta.textContent = x; }, via: () => { clearInterval(giro); d.remove(); } };
+}
+
+async function aggiornaStato() {
+  try {
+    const s = await (await fetch('/api/stato')).json();
+    statoEl.textContent = s.stato === 'errore' ? 'errore: ' + s.errore : STATI[s.stato] ?? s.stato;
+    statoEl.className = s.stato === 'errore' ? 'guasto' : s.stato === 'pronta' ? '' : 'attesa';
+    if (s.stato !== 'pronta') setTimeout(aggiornaStato, 5000);
+  } catch { statoEl.textContent = 'non raggiungibile'; statoEl.className = 'guasto'; setTimeout(aggiornaStato, 5000); }
+}
+
+async function storia() {
+  chat.style.scrollBehavior = 'auto';  // all'apertura si salta in fondo, senza animazione (e di nuovo quando arrivano i font)
+  for (const m of await (await fetch('/api/messaggi?n=60')).json()) aggiungi(m.ruolo, m.testo, m.ts, m.citazioni, m);
+  scendi(true);
+  await document.fonts?.ready;
+  scendi(true); chat.style.scrollBehavior = '';
+}
+
+async function manda(t) {
+  invia.disabled = true; document.body.classList.add('pensa');
+  aggiungi('user', t, new Date().toISOString()); scendi(true);
+  let bolla = null, grezzo = '', avviso = indicatore('ci penso'), partito = false, finita = false;
+  try {
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                         body: JSON.stringify({ messaggio: t }) });
+    if (!r.ok) throw new Error((await r.json()).errore);
+    partito = true;  // da qui Eden risponde sul server anche se la pagina perde il collegamento
+    const lettore = r.body.getReader(), dec = new TextDecoder();
+    let resto = '';
+    for (;;) {
+      const { value, done } = await lettore.read();
+      if (done) break;
+      resto += dec.decode(value, { stream: true });
+      const pezzi = resto.split('\n\n'); resto = pezzi.pop();
+      for (const p of pezzi) {
+        if (!p.startsWith('data: ')) continue;
+        const e = JSON.parse(p.slice(6));
+        if (e.tipo === 'rilegge') avviso?.testo('rileggo la nostra storia (qualche minuto)');
+        else if (e.tipo === 'pensa') (avviso ??= indicatore('ci penso')).testo('ci penso');
+        else if (e.tipo === 'cerca') (avviso ??= indicatore(e.testo)).testo(e.testo);
+        else if (e.tipo === 'scarta') { bolla?.remove(); bolla = null; grezzo = ''; }  // preambolo o risposta da rifare
+        else if (e.tipo === 'testo') {
+          if (avviso) { avviso.via(); avviso = null; }
+          if (!bolla) { bolla = aggiungi('assistant', ''); bolla.classList.add('scrive'); }
+          grezzo += e.testo; disegna(bolla.firstChild, grezzo); scendi();
+        } else if (e.tipo === 'citazioni' && bolla) disegna(bolla.firstChild, grezzo, e.citazioni);
+        else if (e.tipo === 'errore') { finita = true; nota(e.testo); }
+        else if (e.tipo === 'fine' && bolla) {
+          finita = true; bolla.classList.remove('scrive');
+          piede(bolla, new Date().toISOString(), { id: e.id }); scendi();
+        }
+      }
+    }
+  } catch (err) { if (!partito) nota('errore: ' + err.message); }
+  if (avviso) avviso.via();
+  bolla?.classList.remove('scrive');
+  if (partito && !finita) { await riprendi(); return; }  // collegamento perso (app chiusa, schermo spento): si riaggancia
+  invia.disabled = false; document.body.classList.remove('pensa');
+  if (!TELEFONO) testo.focus();
+}
+
+/* Se la pagina perde il collegamento mentre Eden scrive (su iPhone basta cambiare app), la risposta continua sul
+   server e si salva: la pagina aspetta che abbia finito e poi ricarica i messaggi. Vale anche riaprendo la pagina. */
+let riprendendo = false;
+async function riprendi() {
+  if (riprendendo) return;
+  riprendendo = true; invia.disabled = true; document.body.classList.add('pensa');
+  const avviso = indicatore('sto finendo di scriverti');
+  for (;;) {
+    try {
+      const s = await (await fetch('/api/stato')).json();
+      if (!s.occupata) break;
+      avviso.testo(s.stato === 'rilegge' || s.stato === 'si_sveglia' ? 'rileggo la nostra storia' : 'sto finendo di scriverti');
+    } catch {}
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  avviso.via();
+  flusso.replaceChildren(); ultimoGiorno = null;
+  try { await storia(); } catch { nota('non raggiungibile: riapri la pagina'); }
+  riprendendo = false; invia.disabled = false; document.body.classList.remove('pensa');
+}
+let inCorso = false;  // c'è una manda() aperta in questa pagina
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || inCorso) return;
+  try { if ((await (await fetch('/api/stato')).json()).occupata) riprendi(); } catch {}
+});
+
+document.getElementById('modulo').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = testo.value.trim();
+  if (t && !invia.disabled) { testo.value = ''; testo.style.height = ''; inCorso = true; manda(t).finally(() => { inCorso = false; }); }
+});
+const TELEFONO = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+testo.addEventListener('keydown', e => {  // sul computer Invio manda; sul telefono Invio va a capo, si manda con il pulsante
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !TELEFONO) {
+    e.preventDefault(); document.getElementById('modulo').requestSubmit();
+  }
+});
+testo.addEventListener('input', () => { testo.style.height = ''; testo.style.height = testo.scrollHeight + 'px'; });
+
+storia().then(aggiornaStato).then(async () => {  // riaperta mentre Eden sta ancora rispondendo? si aspetta la risposta
+  try { if ((await (await fetch('/api/stato')).json()).occupata) riprendi(); } catch {}
+});
+</script>
+</body>
+</html>

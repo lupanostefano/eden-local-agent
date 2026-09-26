@@ -10,19 +10,19 @@ This repository holds the code and the documentation. It does not hold Eden's ru
 
 ## Status
 
-The code in this repository is the current version, which I call Eden 1 (Ollama, ChromaDB, Kuzu). I am rebuilding it as Eden 2, on llama.cpp and a single SQLite memory. So far that work has produced measurements, design decisions, a migration of the memory to SQLite and a memory exam that chose the model and the memory setup. There is no Eden 2 runtime code in this repository yet.
+The Eden 1 code (Ollama, ChromaDB, Kuzu) is still here. Eden 2 is being rebuilt on llama.cpp and a single SQLite memory; its core is in [`nucleo/`](nucleo/), with an identity exam in [`tools/esame_identita/`](tools/esame_identita/). The data, the tests (personal fixtures), the exam questions and the migration script are not published.
 
-The reasons, the numbers and what is still open are in [`docs/EDEN2.md`](docs/EDEN2.md). In short:
+The reasons, the numbers and what is still open are in [`docs/EDEN2.md`](docs/EDEN2.md) and [`docs/IDENTITY_EXAM.md`](docs/IDENTITY_EXAM.md). In short:
 
-| Area | Eden 1 (this code) | Eden 2 (decided, in progress) |
+| Area | Eden 1 (this code) | Eden 2 |
 |---|---|---|
 | Inference | Ollama | llama.cpp server with speculative decoding and prefix cache |
-| Memory | JSON, ChromaDB, Kuzu graph | one SQLite file: literal messages, FTS5 index, facts with validity dates, judgments |
-| Recall | context assembled from memory sections | a long history (about 140K tokens) plus a search tool that the model calls |
-| Consolidation | periodic rule-based job | a "sleep" step that extracts facts together with their source |
-| Voice | Fish-Speech 1.5 | Qwen3-TTS 1.7B, with faster-whisper for listening |
+| Memory | JSON, ChromaDB, Kuzu graph | one SQLite file: literal messages, FTS5 index, facts with validity dates, judgments, embeddings |
+| Recall | context assembled from memory sections | a long history (about 140K tokens) plus a search tool the model calls, with checked citations |
+| Consolidation | periodic rule-based job | a "sleep" step that extracts facts together with their source (next) |
+| Voice | Fish-Speech 1.5 | Qwen3-TTS 1.7B, with faster-whisper for listening (planned) |
 
-The rebuild has 8 steps: 1 measurements (done) · 2 migration to SQLite (done) · 3 memory exam (done) · 4 new core · 5 search as a tool, with checked citations · 6 sleep, and a view of what Eden knows about the user · 7 voice, UI, access · 8 proactive messages and pruning.
+The rebuild has 8 steps: 1 measurements · 2 migration to SQLite · 3 memory exam · 4 new core · 5 search as a tool, with checked citations (all done) · 6 sleep, and a view of what Eden knows about the user · 7 voice, UI, access · 8 proactive messages and pruning.
 
 ## What is in here (Eden 1)
 

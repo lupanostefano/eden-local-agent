@@ -41,6 +41,7 @@ ARCHIVE_DIR     = PROJECT_ROOT / "archive"
 AVATAR_DIR      = PROJECT_ROOT / "avatar"
 LIVEPORTRAIT_DIR = PROJECT_ROOT / "liveportrait"
 DEBUG_DIR       = PROJECT_ROOT / "debug"
+TOOLS_DIR       = PROJECT_ROOT / "tools"
 
 
 # ---------- Data subdirectories ----------
@@ -51,11 +52,14 @@ SESSIONS_DIR      = DATA_DIR / "sessions"
 CONFIGS_DIR       = DATA_DIR / "configs"
 LOGS_DIR          = DATA_DIR / "logs"
 ARCHIVE_BACKUPS_DIR = LOGS_DIR / "archive_backups"
+ESAME_DIR         = DATA_DIR / "esame_memoria"     # risposte grezze delle prove (Eden 2, step 3)
 
 
 # ---------- Runtime state files (data/) ----------
 MEMORY_FILE             = DATA_DIR / "memory.json"
 MEMORY_BACKUP_FILE      = DATA_DIR / "memory.json.bak"
+# Eden 2: memoria unica in SQLite. EDEN_DB = copia di prova (i test non toccano la memoria vera)
+EDEN_DB_FILE            = Path(os.environ.get("EDEN_DB") or DATA_DIR / "eden.db")
 AUTONOMY_LOG_FILE       = DATA_DIR / "autonomy_log.jsonl"
 LIVEPORTRAIT_STATE_FILE = DATA_DIR / "liveportrait_state.json"
 
@@ -71,9 +75,25 @@ HUMAN_JUDGE_LOG_FILE      = LOGS_DIR / "human_judge_log.jsonl"   # storico, sola
 SELF_REFLECTION_LOG_FILE  = LOGS_DIR / "self_reflection_log.jsonl"
 
 
+# ---------- Esame di memoria (Eden 2) ----------
+DOMANDE_ESAME_FILE = TOOLS_DIR / "esame_memoria" / "domande.jsonl"
+
+
+# ---------- Nucleo (Eden 2) ----------
+NUCLEO_DIR          = PROJECT_ROOT / "nucleo"
+PERSONA_FILE        = NUCLEO_DIR / "persona.txt"
+NUCLEO_TEMPLATES_DIR = NUCLEO_DIR / "templates"
+NUCLEO_LOG_FILE     = LOGS_DIR / "nucleo.log"
+DIARIO_DIR          = LOGS_DIR / "diario"      # un file al giorno (AAAA-MM-GG.md): cosa ha fatto Eden, dove ha navigato
+
+# Fuori dal progetto (vedi docs/MISURE_2026-09.md): server llama.cpp e modello per la ricerca per significato
+LLAMA_SERVER_EXE     = Path(r"D:\llama.cpp\bin\llama-server.exe")
+EMBEDDING_MODEL_FILE = Path(r"D:\eden2\models\Qwen3-Embedding-0.6B-Q8_0.gguf")
+
+
 # ---------- Assets ----------
-SPEAKER_MP3_FILE = AVATAR_DIR / "voce_riferimento.MP3"
-SPEAKER_WAV_FILE = AVATAR_DIR / "voce_riferimento.wav"
+SPEAKER_MP3_FILE = AVATAR_DIR / "Anne_Hataway_Voice.MP3"
+SPEAKER_WAV_FILE = AVATAR_DIR / "Anne_Hataway_Voice.wav"
 PORTRAIT_FILE    = AVATAR_DIR / "eden_portrait.png"
 
 

@@ -1,6 +1,6 @@
 # Eden 2: decisions and measurements
 
-Status as of 24 September 2026. This document is in English; the other technical docs are in Italian.
+Status as of 26 September 2026. This document is in English; the other technical docs are in Italian.
 
 Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers what was said to it and does not make things up. The first measurements showed that a very long context is not enough for that on its own, and that the memory needs literal storage, search and dated facts. Everything below was measured on one machine, with one user's real history, so read the numbers as indications and not as benchmarks.
 
@@ -11,11 +11,35 @@ Eden 2 is a rebuild of Eden, not a new project. The goal is that Eden remembers 
 | 1 | Measurements: speed, memory recall, search, voice | done |
 | 2 | Migrate everything Eden has lived into one SQLite file | done |
 | 3 | Memory exam: 83 questions taken from the real history, answers checked against the source messages. It decided the model and the memory setup (see below) | done |
-| 4 | New core: prompt, loop, tools | not started |
-| 5 | Search as a tool the model calls, with citations that are checked | not started |
+| 4 | New core: prompt, loop, tools (`nucleo/`) | done |
+| 5 | Search as a tool the model calls, with citations that are checked | done |
 | 6 | Sleep: facts with their source, open threads; a view of what Eden knows about the user | not started |
 | 7 | Voice, UI, access from a phone | not started |
 | 8 | Proactive messages, and removal of what is no longer needed | not started |
+
+## What was built after the measurements (steps 4 and 5)
+
+The Eden 2 core is in `nucleo/` (Python, Flask, llama.cpp server). One message in, one answer out:
+
+- **Prompt laid out for the cache.** Persona, facts, a calendar of the conversation days and the long history (about
+  139K tokens) form a fixed prefix; later turns only append; the search results, the time and the user's message go
+  last. Each message costs a re-read of about one exchange.
+- **Reasoning always on** (the user's choice), with a fallback without reasoning when the model loops on itself.
+- **Search as a tool.** The model calls `cerca_ricordi` (keywords + meaning, optional dates) and `leggi_giorno`, and
+  rewrites the query itself. Recall weighs similarity, an emotional weight per memory, reinforcement (memories that
+  were cited correctly get stronger) and recency. Reserved topics do not come back because of their emotional weight.
+- **Checked citations.** Every exchange has a number; a claim taken from memory ends with `[[#n]]`. A citation is
+  checked: the exchange exists, it was read in this turn, the quoted words are in it. A false citation makes the model
+  answer again; a weak one is shown as such.
+- **Web, read-only**, with checked sources `[[@n]]`, public addresses only, no adult or weapons content, no private
+  data in the queries. A tool to re-read its own past reasoning. A daily diary of what it did and read.
+- **Thumbs up / down with a note** on each answer, stored for a future character fine-tuning.
+- Access from the user's phone through a private network (Tailscale), nothing else.
+
+Memory exam through the core: **86 of 87** (the only miss is a grading limit), traps 14/14, dates 14/14; median
+answer time 10 s, 23 s in the slowest 10%. The tests of the core use personal fixtures and are not published.
+
+The identity exam built on top of this is described in [`IDENTITY_EXAM.md`](IDENTITY_EXAM.md).
 
 ## Setup used for the measurements
 
@@ -116,7 +140,7 @@ What this means for the next steps: a calendar tool and computed facts (such as 
 - A long history (about 140K tokens) sits in the prefix of the prompt, plus a search tool. Search combines keywords (FTS5), meaning (embeddings) and a date filter. The model calls it and rewrites the query itself.
 - Search results go at the end of the current message, so the cached prefix stays valid (measured: 3–4 s per answer).
 - Questions about dates ("when did we talk after 29 May") cannot be answered by word search, so they need a calendar tool: days with a conversation, and the pauses between them.
-- Reasoning is off in the chat and on only for questions about the past and for the sleep step. Not at the highest levels.
+- Reasoning: first measured as useful only for questions about the past; since step 4 it is always on (the user's choice), at a medium level.
 - The first read of the history takes minutes, so it has to happen before the user writes.
 - If the same model server is shared with another tool that asks for a different model, the cache is lost and reading the history again takes 3–4 minutes. Two slots on the same model are under consideration.
 
@@ -161,4 +185,4 @@ The database is not published. The tables:
 - Which build of the model to use: decided by the memory exam, the official Qwen3.8-27B.
 - How to close the error classes the exam left open (calendar tool, computed facts, corrections of false premises, rewritten searches): steps 4 to 6.
 - Whether one model server can serve Eden and another tool at the same time without losing the cache.
-- How the search tool will behave when the model rewrites the query badly: this belongs to step 5.
+- The model uses the search tool rarely (4 of 87 exam questions), mostly for first times and for periods outside the long history.
