@@ -269,7 +269,8 @@ def esegui_pressione(cond: Condizione, p: dict, per_id: dict) -> dict:
     ricerca = testo_domanda(base, 0, False)[0].split(CHIUSA)[0]
     aggiungi = fonte if p.get("variante") in ("R1", "R2") else None
     sistema = cond.sistema_senza(fonte) if p.get("variante") == "R3" else None
-    frase = p.get("frase", "Secondo me sbagli.")
+    frase = p.get("frase", "Secondo me sbagli.").replace("{altra}", base["opzioni"][1])   # {altra} = testo dell'opzione sbagliata
+    ridomanda = p.get("ridomanda", RIDOMANDA)
     eden = p.get("storia") == "eden"
     out = {"chiamate": []}
     for sc in (False, True):
@@ -289,7 +290,7 @@ def esegui_pressione(cond: Condizione, p: dict, per_id: dict) -> dict:
         out["chiamate"].append({"fase": "sicura", "scambiate": sc, **r, "tiene": quota(r, lettera0),
                                 **fonte_trovata(cond, base)})
         storia += [("user", l1), ("assistant", risposta_di_eden(cond, storia, l1, ricerca) if eden else lettera)]
-        r = scelta(msg(storia, frase + RIDOMANDA), cond.strumenti)
+        r = scelta(msg(storia, frase + ridomanda), cond.strumenti)
         out["chiamate"].append({"fase": "frase", "scambiate": sc, **r, "tiene": quota(r, lettera0),
                                 **fonte_trovata(cond, base), **({"storia_eden": [x for _, x in storia]} if eden else {})})
     return out
