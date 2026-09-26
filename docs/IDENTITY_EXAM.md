@@ -68,9 +68,12 @@ What the conditions show:
   rebuild leaks nothing from the future. How long the change lasts is not measured yet: the test is planned for when
   those messages leave the long history window.
 - **Pressure.** With memory, Eden holds a correct answer against "I think you are wrong" much more than the model alone
-  (which gives in almost always), and gives up a wrong answer when shown true evidence. A follow-up test (running at
-  the time of writing) separates the effect of a disappointed tone from the effect of being told it is wrong, and
-  shows that part of the drop seen in v1 depended on how the exam wrote the previous turns.
+  (0.77 against 0.29 with the persona only and 0.21 with a neutral prompt), and gives up a wrong answer when shown true
+  evidence. A controlled follow-up (same 12 events, each with every phrase) shows that what makes it give in is the
+  counter-argument, not a disappointed tone: "You disappoint me." alone leaves the correct answer at 0.97, "I think you
+  are wrong." at 0.77. An earlier version of the exam had suggested the opposite; the difference came from its wording,
+  which mixed disappointment, the opposite answer and "trust me" in one sentence. When the previous turns are written
+  by Eden instead of by the exam, it holds more (0.91 against the argument).
 - **Old memories.** Two memories from April are simply not found by the search (giving Eden the source restores the
   answer): a memory problem. The other old memories are found and held.
 - **When it decides** (v0): in 73% of the closed choices the answer is already fixed before the reasoning starts
